@@ -1,5 +1,6 @@
 "use client";
 
+import { RotateCcw } from "lucide-react";
 import { resetProgress } from "@/lib/progress";
 
 export function ResetProgressButton() {
@@ -7,8 +8,12 @@ export function ResetProgressButton() {
     if (window.confirm("Effacer toute ta progression ?")) resetProgress();
   }
   return (
-    <button type="button" onClick={handleClick} className="text-xs text-brand-400 hover:text-brand-600 hover:underline">
-      Réinitialiser ma progression
+    <button
+      type="button"
+      onClick={handleClick}
+      className="inline-flex items-center gap-1.5 font-mono text-xs text-ink-500 hover:text-ink-200"
+    >
+      <RotateCcw className="h-3 w-3" /> réinitialiser
     </button>
   );
 }

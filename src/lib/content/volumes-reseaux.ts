@@ -1,12 +1,56 @@
 import type { Module } from "../types";
 
-const run = [["docker", "run"], ["docker", "container", "run"]];
+const run = [
+  ["docker", "run"],
+  ["docker", "container", "run"],
+];
 
 export const volumesReseaux: Module = {
   id: "volumes-reseaux",
   title: "Volumes & réseaux",
   description: "Conserver des données et faire communiquer des conteneurs.",
-  icon: "🔗",
+  icon: "database",
+  videos: [
+    {
+      youtubeId: "lstTLSM5494",
+      title: "Les volumes pour persister les données… en 10 min",
+      author: "xavki",
+      duration: "10:46",
+      lang: "fr",
+    },
+    { youtubeId: "vHGwkA9fsIs", title: "Les différents types de volumes Docker", author: "xavki", duration: "14:44", lang: "fr" },
+    { youtubeId: "YcAWluYkVXc", title: "Les réseaux", author: "xavki", duration: "12:57", lang: "fr" },
+  ],
+  resources: [
+    {
+      title: "Persister les données",
+      url: "https://docs.docker.com/get-started/docker-concepts/running-containers/persisting-container-data/",
+      kind: "doc",
+      lang: "en",
+      description: "Introduction pratique aux volumes.",
+    },
+    {
+      title: "Volumes",
+      url: "https://docs.docker.com/engine/storage/volumes/",
+      kind: "doc",
+      lang: "en",
+      description: "Création, partage, sauvegarde et pilotes de volumes.",
+    },
+    {
+      title: "Bind mounts",
+      url: "https://docs.docker.com/engine/storage/bind-mounts/",
+      kind: "doc",
+      lang: "en",
+      description: "Monter un dossier de l'hôte, cas d'usage et pièges.",
+    },
+    {
+      title: "Réseaux",
+      url: "https://docs.docker.com/engine/network/",
+      kind: "doc",
+      lang: "en",
+      description: "Pilotes réseau, DNS interne et publication de ports.",
+    },
+  ],
   exercises: [
     {
       id: "volumes",
@@ -20,15 +64,17 @@ export const volumesReseaux: Module = {
           rule: { prefixes: [["docker", "volume", "create"]], args: ["pgdata"] },
           solution: "docker volume create pgdata",
           hint: "docker volume create <nom>",
-          output: "pgdata",
         },
         {
           instruction: "Liste les volumes.",
-          rule: { prefixes: [["docker", "volume", "ls"], ["docker", "volume", "list"]] },
+          rule: {
+            prefixes: [
+              ["docker", "volume", "ls"],
+              ["docker", "volume", "list"],
+            ],
+          },
           solution: "docker volume ls",
           hint: "Même logique que docker image ls",
-          output: `DRIVER    VOLUME NAME
-local     pgdata`,
         },
         {
           instruction:
@@ -44,35 +90,28 @@ local     pgdata`,
           },
           solution: "docker run -d -e POSTGRES_PASSWORD=secret -v pgdata:/var/lib/postgresql/data postgres",
           hint: "-v <volume>:<chemin dans le conteneur>",
-          output: "b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2",
         },
         {
           instruction: "Inspecte le volume pgdata pour voir où il est stocké.",
           rule: { prefixes: [["docker", "volume", "inspect"]], args: ["pgdata"] },
           solution: "docker volume inspect pgdata",
           hint: "docker volume inspect <nom>",
-          output: `[
-    {
-        "CreatedAt": "2026-10-20T10:20:00Z",
-        "Driver": "local",
-        "Mountpoint": "/var/lib/docker/volumes/pgdata/_data",
-        "Name": "pgdata",
-        "Scope": "local"
-    }
-]`,
         },
       ],
     },
     {
       id: "bind-mount",
       kind: "command",
+      setup: {
+        volumes: ["pgdata"],
+        files: { "site/index.html": "<!doctype html>\n<html>\n  <body>\n    <h1>Mon site servi par Docker</h1>\n  </body>\n</html>" },
+      },
       title: "Monter un dossier local (bind mount)",
       intro:
         "Un bind mount relie un dossier de ta machine à un dossier du conteneur : idéal en développement, les modifications sont visibles instantanément. Le chemin côté hôte doit être absolu ou commencer par `./`.",
       steps: [
         {
-          instruction:
-            "Lance nginx en arrière-plan sur le port 8080:80, en montant le dossier local ./site sur /usr/share/nginx/html.",
+          instruction: "Lance nginx en arrière-plan sur le port 8080:80, en montant le dossier local ./site sur /usr/share/nginx/html.",
           rule: {
             prefixes: run,
             flags: [
@@ -84,35 +123,50 @@ local     pgdata`,
           },
           solution: "docker run -d -p 8080:80 -v ./site:/usr/share/nginx/html nginx",
           hint: "-v <dossier local>:<dossier conteneur>",
-          output: "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5",
         },
         {
-          instruction: "Même chose mais en lecture seule (ajoute :ro à la fin du montage).",
+          instruction: "Vérifie que nginx sert bien ta page : interroge http://localhost:8080 avec curl.",
+          rule: {
+            prefixes: [
+              ["curl", "localhost:8080"],
+              ["curl", "http://localhost:8080"],
+              ["curl", "localhost:8080/"],
+              ["curl", "http://localhost:8080/"],
+            ],
+          },
+          solution: "curl localhost:8080",
+          hint: "curl <adresse> affiche la réponse HTTP brute.",
+        },
+        {
+          instruction:
+            "Lance un second nginx sur le port 8081, avec le même dossier monté en lecture seule (ajoute :ro à la fin du montage).",
           rule: {
             prefixes: run,
             flags: [
               { names: ["-d", "--detach"] },
-              { names: ["-p", "--publish"], value: "8080:80" },
+              { names: ["-p", "--publish"], value: "8081:80" },
               { names: ["-v", "--volume"], value: "./site:/usr/share/nginx/html:ro" },
             ],
             args: ["nginx"],
           },
-          solution: "docker run -d -p 8080:80 -v ./site:/usr/share/nginx/html:ro nginx",
-          hint: "…/html:ro",
-          output: "f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7",
+          solution: "docker run -d -p 8081:80 -v ./site:/usr/share/nginx/html:ro nginx",
+          hint: "Le port 8080 est déjà pris par le premier conteneur. Le montage se termine par …/html:ro",
         },
         {
           instruction: "Supprime le volume pgdata.",
           rule: { prefixes: [["docker", "volume", "rm"]], args: ["pgdata"] },
           solution: "docker volume rm pgdata",
           hint: "docker volume rm <nom>",
-          output: "pgdata",
         },
       ],
     },
     {
       id: "reseaux",
       kind: "command",
+      setup: {
+        customImages: [{ ref: "mon-api", base: "node:22-alpine" }],
+        containers: [{ name: "api", image: "mon-api", ports: ["3000:3000"] }],
+      },
       title: "Réseaux Docker",
       intro:
         "Sur un réseau défini par l'utilisateur, les conteneurs se trouvent par leur nom (DNS interne). Ainsi une API peut joindre sa base via l'hôte `db`.",
@@ -122,18 +176,17 @@ local     pgdata`,
           rule: { prefixes: [["docker", "network", "create"]], args: ["mon-reseau"] },
           solution: "docker network create mon-reseau",
           hint: "docker network create <nom>",
-          output: "9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a0",
         },
         {
           instruction: "Liste les réseaux.",
-          rule: { prefixes: [["docker", "network", "ls"], ["docker", "network", "list"]] },
+          rule: {
+            prefixes: [
+              ["docker", "network", "ls"],
+              ["docker", "network", "list"],
+            ],
+          },
           solution: "docker network ls",
           hint: "docker network ls",
-          output: `NETWORK ID     NAME         DRIVER    SCOPE
-1a2b3c4d5e6f   bridge       bridge    local
-9f8e7d6c5b4a   mon-reseau   bridge    local
-2b3c4d5e6f7a   host         host      local
-3c4d5e6f7a8b   none         null      local`,
         },
         {
           instruction: "Lance redis en arrière-plan, nommé cache, sur le réseau mon-reseau.",
@@ -148,14 +201,12 @@ local     pgdata`,
           },
           solution: "docker run -d --name cache --network mon-reseau redis",
           hint: "--network <nom du réseau>",
-          output: "0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9",
         },
         {
           instruction: "Connecte le conteneur existant api au réseau mon-reseau.",
           rule: { prefixes: [["docker", "network", "connect"]], args: ["mon-reseau", "api"] },
           solution: "docker network connect mon-reseau api",
           hint: "docker network connect <réseau> <conteneur>",
-          output: "",
         },
       ],
     },
@@ -163,7 +214,12 @@ local     pgdata`,
   quiz: [
     {
       question: "Que deviennent les données écrites dans un conteneur sans volume quand on le supprime ?",
-      choices: ["Elles sont sauvegardées sur Docker Hub", "Elles sont perdues", "Elles sont copiées dans l'image", "Elles vont dans un volume par défaut"],
+      choices: [
+        "Elles sont sauvegardées sur Docker Hub",
+        "Elles sont perdues",
+        "Elles sont copiées dans l'image",
+        "Elles vont dans un volume par défaut",
+      ],
       answer: 1,
       explanation: "La couche d'écriture du conteneur est supprimée avec lui. D'où l'intérêt des volumes.",
     },

@@ -1,10 +1,14 @@
-# 🐳 Docker Playground
+# Docker Playground
 
 Plateforme locale pour apprendre la ligne de commande Docker par la pratique :
-un terminal simulé pour taper les commandes, un éditeur pour écrire des `Dockerfile`,
-`.dockerignore` et `compose.yaml`, et un quiz à la fin de chaque module.
+
+- **Cours** écrits pour chaque module, avec des vidéos (FR et EN) et une section « Aller plus loin » (documentation officielle, labs en ligne) ;
+- **Terminal simulé** qui se comporte comme un vrai : état persistant (conteneurs, images, volumes, réseaux, fichiers), vraies sorties et vrais messages d'erreur de la CLI, questions interactives (`docker login`, confirmations `[y/N]`), shells dans les conteneurs (`docker exec -it … sh`), processus au premier plan interrompus par Ctrl+C ;
+- **Éditeur** pour écrire des `Dockerfile`, `.dockerignore` et `compose.yaml` ;
+- **Quiz** à la fin de chaque module, et un **aide-mémoire** filtrable.
 
 Aucune base de données : la progression est enregistrée dans le `localStorage` du navigateur.
+Aucune commande n'est exécutée sur la machine : tout est simulé.
 
 ## Démarrer
 
@@ -13,83 +17,81 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Version optimisée : `npm run build && npm start`.
+| Script           | Rôle                                                 |
+| ---------------- | ---------------------------------------------------- |
+| `npm run dev`    | Serveur de développement                             |
+| `npm run build`  | Build de production (`npm start` pour le lancer)     |
+| `npm test`       | Tests : simulateur, parseur, cohérence du contenu    |
+| `npm run lint`   | ESLint                                               |
+| `npm run format` | Prettier                                             |
 
-| Script            | Rôle                                     |
-| ----------------- | ---------------------------------------- |
-| `npm run dev`     | Serveur de développement                 |
-| `npm run build`   | Build de production                      |
-| `npm start`       | Lance le build de production             |
-| `npm test`        | Tests (parseur + cohérence du contenu)   |
-| `npm run lint`    | ESLint                                   |
+## Le terminal
 
-## Parcours
+| Raccourci     | Effet                                               |
+| ------------- | --------------------------------------------------- |
+| ↑ / ↓         | historique                                          |
+| Tab           | complétion (commandes, conteneurs, images, fichiers) |
+| Ctrl + C      | interrompre (`logs -f`, `run` attaché, `stats`…)    |
+| Ctrl + L      | effacer l'écran (ou `clear`)                        |
+| Ctrl + U      | effacer la ligne                                    |
+| Clic droit    | coller — ou copier, si du texte est sélectionné     |
 
-1. Premiers pas — `version`, `info`, `run hello-world`, `--help`
-2. Les images — `pull`, `images`, `inspect`, `tag`, `history`, `rmi`, `prune`
-3. Les conteneurs — `run -d -p --name`, `ps`, `logs`, `stop/start/rm`, `exec -it`, `-e`, `stats`
-4. Dockerfile & build — écriture de Dockerfile, `.dockerignore`, multi-stage, `build -t -f`
-5. Volumes & réseaux — volumes nommés, bind mounts, `network create/connect`
-6. Docker Compose — écriture d'un `compose.yaml`, `up -d --build`, `ps`, `logs`, `exec`, `down -v`
-7. Docker Hub — `search`, `login`, `tag`, `push`, `logout`
-8. Nettoyage & Docker Desktop — `system df`, `prune`, `context`, `top`, `cp`
-
-Une page **Aide-mémoire** récapitule les commandes essentielles.
-
-> Le terminal est **simulé** : aucune commande n'est réellement exécutée sur ta machine.
-> Tu peux ensuite reproduire les exercices dans un vrai terminal avec Docker Desktop.
+Le terminal ne dit jamais si la commande est « la bonne » : il répond comme Docker. L'étape est validée
+dans le panneau de gauche quand la commande correspond à la consigne **et** qu'elle a réussi. Ce panneau
+permet aussi d'afficher une aide ou la réponse.
 
 ## Architecture
 
 ```
 src/
-├── app/                                  # Routes (App Router)
-│   ├── page.tsx                          # Accueil : liste des modules
-│   ├── aide-memoire/page.tsx
-│   └── modules/[moduleId]/
-│       ├── page.tsx                      # Détail d'un module
-│       ├── exercices/[exerciseId]/page.tsx
-│       └── quiz/page.tsx
+├── app/                          # Routes (App Router)
+│   ├── page.tsx                  # Accueil
+│   ├── aide-memoire/
+│   └── modules/[moduleId]/       # Cours, exercices/[exerciseId], quiz
 ├── components/
-│   ├── Terminal.tsx                      # Terminal simulé (UI pure)
-│   ├── CodeEditor.tsx                    # Éditeur de fichier
-│   ├── Quiz.tsx
-│   └── exercise/                         # Logique des exercices
-│       ├── ExercisePlayground.tsx
-│       ├── CommandPlayground.tsx         # Exercices « terminal »
-│       └── FilePlayground.tsx            # Exercices « fichier »
+│   ├── Terminal.tsx              # Émulateur de terminal (UI)
+│   ├── CodeEditor.tsx
+│   ├── course/                   # Markdown, vidéos, ressources, plan du module
+│   ├── exercise/                 # Exercices terminal / fichier, liaison au simulateur
+│   └── ui/                       # Boutons, icônes
 └── lib/
-    ├── types.ts                          # Types du contenu
-    ├── command-parser.ts                 # Validation des commandes saisies
-    ├── progress.ts                       # Progression (localStorage)
-    └── content/                          # Un fichier par module + aide-mémoire
+    ├── simulator/                # Moteur Docker simulé
+    │   ├── state.ts              # État initial, images, fichiers
+    │   ├── args.ts               # Analyse des options + texte de --help
+    │   ├── registry.ts           # Aiguillage des commandes docker
+    │   ├── runtime.ts            # Cycle de vie des conteneurs
+    │   ├── shell.ts              # Shell de l'hôte et des conteneurs
+    │   └── commands/             # containers, images, build, storage, compose, hub, system
+    ├── content/                  # Un fichier par module + lessons/*.md
+    ├── command-parser.ts         # Comparaison d'une commande à la consigne
+    ├── step-validation.ts
+    └── progress.ts               # Progression (localStorage)
 ```
 
 ## Ajouter du contenu
 
-Tout le contenu se trouve dans [src/lib/content/](src/lib/content/). Pour ajouter un module,
-crée un fichier sur le modèle des existants puis ajoute-le au tableau `modules` de
-[src/lib/content/index.ts](src/lib/content/index.ts).
-
-**Exercice terminal** (`kind: "command"`) : chaque étape décrit la commande attendue avec une règle.
-Les options sont acceptées dans n'importe quel ordre, avec leurs alias, la syntaxe `--option=valeur`
-et les options courtes groupées (`-it`).
+- **Cours** : modifier `src/lib/content/lessons/<module>.md` (Markdown, tableaux acceptés).
+- **Exercice terminal** : dans le fichier du module, une liste d'étapes et l'environnement de départ (`setup`) :
 
 ```ts
 {
-  instruction: "Lance nginx en arrière-plan sur le port 8080.",
-  rule: {
-    prefixes: [["docker", "run"], ["docker", "container", "run"]],
-    flags: [{ names: ["-d", "--detach"] }, { names: ["-p", "--publish"], value: "8080:80" }],
-    args: ["nginx"],
-  },
-  solution: "docker run -d -p 8080:80 nginx",
-  hint: "docker run -d -p <hôte>:<conteneur> <image>",
-  output: "a3f1c9e5…", // sortie simulée affichée en cas de succès
+  id: "cycle-de-vie",
+  kind: "command",
+  setup: { containers: [{ name: "web", image: "nginx", ports: ["8080:80"] }] },
+  steps: [
+    {
+      instruction: "Arrête le conteneur web.",
+      rule: { prefixes: [["docker", "stop"], ["docker", "container", "stop"]], args: ["web"] },
+      solution: "docker stop web",
+      hint: "docker stop <nom>",
+    },
+  ],
 }
 ```
 
-**Exercice fichier** (`kind: "file"`) : une liste de vérifications par expression régulière.
+Les options d'une règle sont acceptées dans n'importe quel ordre, avec leurs alias, `--option=valeur` et les options courtes groupées (`-it`).
 
-Lance `npm test` après chaque ajout : les tests vérifient automatiquement que chaque solution
-valide bien son exercice et que chaque réponse de quiz existe.
+- **Vidéos / ressources** : champs `videos` (identifiant YouTube) et `resources` du module.
+
+Lance `npm test` après chaque ajout : les tests rejouent chaque solution dans le simulateur et
+vérifient que toutes les étapes sont validées.

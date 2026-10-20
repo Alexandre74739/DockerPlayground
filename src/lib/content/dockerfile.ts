@@ -1,12 +1,59 @@
 import type { Module } from "../types";
+import { PROJECT_FILES } from "./fixtures";
 
-const build = [["docker", "build"], ["docker", "image", "build"], ["docker", "buildx", "build"]];
+const build = [
+  ["docker", "build"],
+  ["docker", "image", "build"],
+  ["docker", "buildx", "build"],
+];
 
 export const dockerfile: Module = {
   id: "dockerfile",
   title: "Dockerfile & build",
   description: "Écrire un Dockerfile et construire ses propres images.",
-  icon: "🛠️",
+  icon: "hammer",
+  videos: [
+    { youtubeId: "cWkmqZPWwiw", title: "Apprendre Docker #2 — Créer ses propres images", author: "cocadmin", duration: "7:20", lang: "fr" },
+    { youtubeId: "BUJAI1ptUu8", title: "Le Dockerfile et ses instructions", author: "xavki", duration: "14:32", lang: "fr" },
+    { youtubeId: "gAkwW2tuIqE", title: "Learn Docker in 7 Easy Steps", author: "Fireship", duration: "11:01", lang: "en" },
+  ],
+  resources: [
+    {
+      title: "Référence du Dockerfile",
+      url: "https://docs.docker.com/reference/dockerfile/",
+      kind: "doc",
+      lang: "en",
+      description: "Chaque instruction (FROM, RUN, COPY, CMD…) détaillée.",
+    },
+    {
+      title: "Bonnes pratiques de build",
+      url: "https://docs.docker.com/build/building/best-practices/",
+      kind: "doc",
+      lang: "en",
+      description: "Images plus petites, plus rapides et plus sûres.",
+    },
+    {
+      title: "Builds multi-étapes",
+      url: "https://docs.docker.com/build/building/multi-stage/",
+      kind: "doc",
+      lang: "en",
+      description: "Séparer compilation et exécution pour alléger l'image finale.",
+    },
+    {
+      title: "Contexte de build et .dockerignore",
+      url: "https://docs.docker.com/build/concepts/context/",
+      kind: "doc",
+      lang: "en",
+      description: "Ce qui est envoyé au moteur lors d'un build et comment le filtrer.",
+    },
+    {
+      title: "docker init",
+      url: "https://docs.docker.com/reference/cli/docker/init/",
+      kind: "doc",
+      lang: "en",
+      description: "Générer automatiquement Dockerfile, compose.yaml et .dockerignore pour un projet.",
+    },
+  ],
   exercises: [
     {
       id: "premier-dockerfile",
@@ -47,6 +94,7 @@ CMD ["node", "server.js"]`,
     {
       id: "construire-image",
       kind: "command",
+      setup: { images: ["node:22-alpine"], files: PROJECT_FILES },
       title: "Construire une image",
       intro:
         "`docker build` lit le Dockerfile et construit l'image. `-t` lui donne un nom, et le dernier argument (souvent `.`) est le contexte de build : le dossier envoyé au moteur Docker.",
@@ -56,26 +104,12 @@ CMD ["node", "server.js"]`,
           rule: { prefixes: build, flags: [{ names: ["-t", "--tag"], value: "mon-app" }], args: ["."] },
           solution: "docker build -t mon-app .",
           hint: "docker build -t <nom> <contexte>",
-          output: `[+] Building 12.4s (10/10) FINISHED
- => [internal] load build definition from Dockerfile
- => [1/5] FROM docker.io/library/node:22-alpine
- => [2/5] WORKDIR /app
- => [3/5] COPY package*.json ./
- => [4/5] RUN npm install
- => [5/5] COPY . .
- => exporting to image
- => => naming to docker.io/library/mon-app:latest`,
         },
         {
           instruction: "Construis la même image avec le tag 1.0 (mon-app:1.0).",
           rule: { prefixes: build, flags: [{ names: ["-t", "--tag"], value: "mon-app:1.0" }], args: ["."] },
           solution: "docker build -t mon-app:1.0 .",
           hint: "nom:tag",
-          output: `[+] Building 0.8s (10/10) FINISHED
- => CACHED [2/5] WORKDIR /app
- => CACHED [3/5] COPY package*.json ./
- => CACHED [4/5] RUN npm install
- => => naming to docker.io/library/mon-app:1.0`,
         },
         {
           instruction: "Construis l'image mon-app:prod en utilisant le fichier Dockerfile.prod.",
@@ -89,20 +123,19 @@ CMD ["node", "server.js"]`,
           },
           solution: "docker build -f Dockerfile.prod -t mon-app:prod .",
           hint: "L'option -f indique le fichier à utiliser",
-          output: `[+] Building 14.1s (12/12) FINISHED
- => [internal] load build definition from Dockerfile.prod
- => => naming to docker.io/library/mon-app:prod`,
         },
         {
           instruction: "Lance ton image mon-app en arrière-plan avec le port 3000 publié sur le port 3000.",
           rule: {
-            prefixes: [["docker", "run"], ["docker", "container", "run"]],
+            prefixes: [
+              ["docker", "run"],
+              ["docker", "container", "run"],
+            ],
             flags: [{ names: ["-d", "--detach"] }, { names: ["-p", "--publish"], value: "3000:3000" }],
             args: ["mon-app"],
           },
           solution: "docker run -d -p 3000:3000 mon-app",
           hint: "Même principe qu'avec nginx",
-          output: "c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5",
         },
       ],
     },

@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import { ArrowRight, Check, RotateCcw, Trophy, X } from "lucide-react";
 import { useState } from "react";
 import { saveQuizScore } from "@/lib/progress";
 import type { QuizQuestion } from "@/lib/types";
 import { ProgressBar } from "./ProgressBar";
 import { RichText } from "./RichText";
+import { Button, ButtonLink } from "./ui/Button";
 
 type QuizProps = {
   moduleId: string;
@@ -49,68 +50,77 @@ export function Quiz({ moduleId, questions, nextHref, nextLabel }: QuizProps) {
   if (finished) {
     const percent = Math.round((score / questions.length) * 100);
     return (
-      <div className="rounded-2xl border border-brand-100 bg-white p-8 text-center shadow-sm">
-        <p className="text-5xl">{percent >= 80 ? "🏆" : percent >= 50 ? "👍" : "📚"}</p>
-        <h2 className="mt-4 text-2xl font-bold text-brand-950">
-          {score} / {questions.length} bonnes réponses
-        </h2>
-        <p className="mt-2 text-brand-800">
+      <div className="rounded-2xl border border-ink-700 bg-ink-850 p-8 text-center">
+        <Trophy className={`mx-auto h-12 w-12 ${percent >= 80 ? "text-neon-400" : "text-azure-400"}`} aria-hidden />
+        <p className="mt-5 font-mono text-5xl font-semibold text-white">{percent}%</p>
+        <p className="mt-2 text-ink-300">
+          {score} / {questions.length} bonnes réponses —{" "}
           {percent >= 80
-            ? "Excellent, ce module est maîtrisé !"
+            ? "module maîtrisé !"
             : percent >= 50
-              ? "Pas mal ! Refais les exercices pour consolider."
-              : "Reprends les exercices du module puis retente le quiz."}
+              ? "pas mal, refais les exercices pour consolider."
+              : "relis le cours puis retente ta chance."}
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <button
-            type="button"
-            onClick={restart}
-            className="rounded-lg border border-brand-200 px-4 py-2 text-sm text-brand-700 hover:bg-brand-50"
-          >
-            ↺ Recommencer
-          </button>
-          <Link href={nextHref} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-            {nextLabel} →
-          </Link>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Button onClick={restart}>
+            <RotateCcw className="h-4 w-4" /> Recommencer
+          </Button>
+          <ButtonLink href={nextHref} variant="primary">
+            {nextLabel} <ArrowRight className="h-4 w-4" />
+          </ButtonLink>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-brand-100 bg-white p-6 shadow-sm sm:p-8">
-      <div className="mb-6 flex items-center gap-4 text-sm text-brand-700">
+    <div className="rounded-2xl border border-ink-700 bg-ink-850 p-6 sm:p-8">
+      <div className="mb-7 flex items-center gap-4 font-mono text-xs text-ink-400">
         <span className="tabular-nums">
-          Question {index + 1} / {questions.length}
+          <span className="text-neon-400">{String(index + 1).padStart(2, "0")}</span> / {String(questions.length).padStart(2, "0")}
         </span>
         <ProgressBar value={index + (answered ? 1 : 0)} max={questions.length} className="flex-1" />
       </div>
 
-      <h2 className="text-lg font-semibold text-brand-950">
+      <h2 className="text-lg font-medium leading-relaxed text-white">
         <RichText text={question.question} />
       </h2>
 
-      <div className="mt-5 grid gap-3">
+      <div className="mt-6 grid gap-2.5">
         {question.choices.map((choice, choiceIndex) => {
           const isCorrect = choiceIndex === question.answer;
           const isSelected = choiceIndex === selected;
           const style = !answered
-            ? "border-brand-100 hover:border-brand-400 hover:bg-brand-50"
+            ? "border-ink-700 hover:border-azure-400 hover:bg-ink-800"
             : isCorrect
-              ? "border-brand-600 bg-brand-50 text-brand-900"
+              ? "border-neon-400/70 bg-neon-950/50"
               : isSelected
-                ? "border-rose-300 bg-rose-50 text-rose-800"
-                : "border-brand-100 opacity-60";
+                ? "border-rose-400/60 bg-rose-950/30"
+                : "border-ink-700 opacity-50";
           return (
             <button
               key={choiceIndex}
               type="button"
               onClick={() => choose(choiceIndex)}
               disabled={answered}
-              className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${style}`}
+              className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-ink-100 transition ${style}`}
             >
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
-                {answered && isCorrect ? "✓" : answered && isSelected ? "✗" : String.fromCharCode(65 + choiceIndex)}
+              <span
+                className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg font-mono text-xs ${
+                  answered && isCorrect
+                    ? "bg-neon-400 text-ink-950"
+                    : answered && isSelected
+                      ? "bg-rose-400 text-ink-950"
+                      : "bg-ink-700 text-ink-300"
+                }`}
+              >
+                {answered && isCorrect ? (
+                  <Check className="h-4 w-4" />
+                ) : answered && isSelected ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  String.fromCharCode(65 + choiceIndex)
+                )}
               </span>
               <span>
                 <RichText text={choice} />
@@ -121,19 +131,17 @@ export function Quiz({ moduleId, questions, nextHref, nextLabel }: QuizProps) {
       </div>
 
       {answered && (
-        <div className="mt-5 space-y-4">
-          <p className="rounded-xl bg-brand-50 p-4 text-sm leading-relaxed text-brand-900">
-            <strong>{selected === question.answer ? "Bonne réponse ! " : "Raté. "}</strong>
+        <div className="mt-6 space-y-4">
+          <p className="rounded-xl border-l-2 border-azure-400 bg-azure-950/70 px-4 py-3 text-sm leading-relaxed text-ink-200">
+            <strong className={selected === question.answer ? "text-neon-400" : "text-rose-300"}>
+              {selected === question.answer ? "Bonne réponse. " : "Raté. "}
+            </strong>
             <RichText text={question.explanation} />
           </p>
           <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={next}
-              className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-medium text-white hover:bg-brand-700"
-            >
-              {index + 1 < questions.length ? "Question suivante →" : "Voir mon score"}
-            </button>
+            <Button variant="primary" onClick={next}>
+              {index + 1 < questions.length ? "Question suivante" : "Voir mon score"} <ArrowRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       )}

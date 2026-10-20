@@ -1,4 +1,5 @@
 import type { Module } from "../types";
+import { COMPOSE_FILE, PROJECT_FILES } from "./fixtures";
 
 const compose = (...rest: string[]) => [
   ["docker", "compose", ...rest],
@@ -9,7 +10,54 @@ export const composeModule: Module = {
   id: "compose",
   title: "Docker Compose",
   description: "Décrire et piloter une application multi-conteneurs avec un seul fichier.",
-  icon: "🧩",
+  icon: "puzzle",
+  videos: [
+    {
+      youtubeId: "dWcoIxRfs8Y",
+      title: "Déployer une app avec Docker Compose (Apprendre Docker #3)",
+      author: "cocadmin",
+      duration: "7:47",
+      lang: "fr",
+    },
+    {
+      youtubeId: "ES4BcZcsBdU",
+      title: "Déployer un environnement avec Dockerfile et Docker Compose",
+      author: "Bande de Codeurs",
+      duration: "17:32",
+      lang: "fr",
+    },
+    { youtubeId: "SXwC9fSwct8", title: "Ultimate Docker Compose Tutorial", author: "TechWorld with Nana", duration: "1:03:14", lang: "en" },
+  ],
+  resources: [
+    {
+      title: "Qu'est-ce que Docker Compose ?",
+      url: "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-docker-compose/",
+      kind: "doc",
+      lang: "en",
+      description: "Le concept expliqué avec un exemple pas à pas.",
+    },
+    {
+      title: "Démarrer avec Compose",
+      url: "https://docs.docker.com/compose/gettingstarted/",
+      kind: "doc",
+      lang: "en",
+      description: "Construire une application Python + Redis avec Compose.",
+    },
+    {
+      title: "Référence du fichier Compose",
+      url: "https://docs.docker.com/reference/compose-file/",
+      kind: "doc",
+      lang: "en",
+      description: "Toutes les clés : services, volumes, networks, healthcheck…",
+    },
+    {
+      title: "Awesome Compose",
+      url: "https://github.com/docker/awesome-compose",
+      kind: "article",
+      lang: "en",
+      description: "Dépôt officiel d'exemples de stacks prêtes à l'emploi.",
+    },
+  ],
   exercises: [
     {
       id: "fichier-compose",
@@ -59,6 +107,17 @@ volumes:
     {
       id: "piloter-compose",
       kind: "command",
+      setup: {
+        files: { ...PROJECT_FILES, "compose.yaml": COMPOSE_FILE },
+        compose: {
+          fileName: "compose.yaml",
+          services: [
+            { name: "web", build: true, ports: ["3000:3000"], dependsOn: ["db"] },
+            { name: "db", image: "postgres:16", env: ["POSTGRES_PASSWORD=secret"], volumes: ["pgdata:/var/lib/postgresql/data"] },
+          ],
+          volumes: ["pgdata"],
+        },
+      },
       title: "Piloter une stack Compose",
       intro:
         "Toutes les commandes s'exécutent dans le dossier du fichier compose. `docker compose` (avec un espace) est la version actuelle intégrée à Docker ; `docker-compose` est l'ancienne.",
@@ -68,56 +127,36 @@ volumes:
           rule: { prefixes: compose("up"), flags: [{ names: ["-d", "--detach"] }] },
           solution: "docker compose up -d",
           hint: "docker compose up + option détachée",
-          output: `[+] Running 4/4
- ✔ Network projet_default  Created
- ✔ Volume "projet_pgdata"  Created
- ✔ Container projet-db-1   Started
- ✔ Container projet-web-1  Started`,
         },
         {
           instruction: "Affiche l'état des services de la stack.",
           rule: { prefixes: compose("ps") },
           solution: "docker compose ps",
           hint: "Comme docker ps, mais avec compose",
-          output: `NAME           IMAGE         SERVICE   STATUS         PORTS
-projet-db-1    postgres:16   db        Up 2 minutes   5432/tcp
-projet-web-1   projet-web    web       Up 2 minutes   0.0.0.0:3000->3000/tcp`,
         },
         {
-          instruction: "Suis les logs du service web uniquement.",
+          instruction: "Suis les logs du service web uniquement (Ctrl+C pour arrêter de suivre).",
           rule: { prefixes: compose("logs"), flags: [{ names: ["-f", "--follow"] }], args: ["web"] },
           solution: "docker compose logs -f web",
           hint: "docker compose logs -f <service>",
-          output: `web-1  | > node server.js
-web-1  | Server listening on http://0.0.0.0:3000`,
         },
         {
           instruction: "Ouvre un shell sh dans le service db.",
           rule: { prefixes: compose("exec"), args: ["db", "sh"] },
           solution: "docker compose exec db sh",
           hint: "docker compose exec <service> <commande> (le -it est implicite)",
-          output: "# ",
         },
         {
-          instruction: "Tu as modifié le code : reconstruis les images et redémarre en arrière-plan.",
+          instruction: "Quitte le shell (exit). Tu as modifié le code : reconstruis les images et redémarre la stack en arrière-plan.",
           rule: { prefixes: compose("up"), flags: [{ names: ["-d", "--detach"] }, { names: ["--build"] }] },
           solution: "docker compose up -d --build",
           hint: "docker compose up -d avec l'option --build",
-          output: `[+] Building 6.2s (10/10) FINISHED
-[+] Running 2/2
- ✔ Container projet-db-1   Running
- ✔ Container projet-web-1  Started`,
         },
         {
           instruction: "Arrête et supprime les conteneurs ET les volumes de la stack.",
           rule: { prefixes: compose("down"), flags: [{ names: ["-v", "--volumes"] }] },
           solution: "docker compose down -v",
           hint: "docker compose down + option volumes",
-          output: `[+] Running 4/4
- ✔ Container projet-web-1  Removed
- ✔ Container projet-db-1   Removed
- ✔ Volume projet_pgdata    Removed
- ✔ Network projet_default  Removed`,
         },
       ],
     },

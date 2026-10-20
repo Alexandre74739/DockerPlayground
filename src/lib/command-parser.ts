@@ -66,9 +66,7 @@ export function matchCommand(input: string, rule: CommandRule): MatchResult {
   if (!prefix) {
     return {
       ok: false,
-      reason: `Ce n'est pas la bonne commande. Attendu : ${rule.prefixes
-        .map((p) => p.join(" "))
-        .join(" ou ")}`,
+      reason: `Ce n'est pas la bonne commande. Attendu : ${rule.prefixes.map((p) => p.join(" ")).join(" ou ")}`,
     };
   }
 

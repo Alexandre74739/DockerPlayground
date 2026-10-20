@@ -4,100 +4,149 @@ export const maintenance: Module = {
   id: "maintenance",
   title: "Nettoyage & Docker Desktop",
   description: "Libérer de l'espace, surveiller et retrouver ses repères dans Docker Desktop.",
-  icon: "🧹",
+  icon: "brush",
+  videos: [
+    { youtubeId: "eTjglugM2Bo", title: "Astuce : prune", author: "xavki", duration: "7:02", lang: "fr" },
+    {
+      youtubeId: "CdbAqjjNj2o",
+      title: "Docker Desktop & WSL2 : installation, configuration et premier conteneur",
+      author: "Tchaps Tech",
+      duration: "25:56",
+      lang: "fr",
+    },
+  ],
+  resources: [
+    {
+      title: "Nettoyer les objets inutilisés",
+      url: "https://docs.docker.com/engine/manage-resources/pruning/",
+      kind: "doc",
+      lang: "en",
+      description: "Tout sur les commandes prune et leurs filtres.",
+    },
+    {
+      title: "Contextes Docker",
+      url: "https://docs.docker.com/engine/manage-resources/contexts/",
+      kind: "doc",
+      lang: "en",
+      description: "Piloter plusieurs moteurs Docker depuis la même CLI.",
+    },
+    {
+      title: "Explorer Docker Desktop",
+      url: "https://docs.docker.com/desktop/use-desktop/",
+      kind: "doc",
+      lang: "en",
+      description: "Conteneurs, images, volumes et paramètres dans l'interface.",
+    },
+    {
+      title: "Roadmap Docker",
+      url: "https://roadmap.sh/docker",
+      kind: "article",
+      lang: "en",
+      description: "Une carte pour savoir quoi apprendre ensuite.",
+    },
+    {
+      title: "Docker Labs (Collabnix)",
+      url: "https://dockerlabs.collabnix.com/",
+      kind: "lab",
+      lang: "en",
+      description: "Des centaines de tutoriels et labs communautaires gratuits.",
+    },
+  ],
   exercises: [
     {
       id: "espace-disque",
       kind: "command",
+      setup: {
+        images: ["hello-world", "nginx", "node:22-alpine", "postgres", "redis", "ubuntu"],
+        danglingImages: 3,
+        containers: [
+          { name: "web", image: "nginx", ports: ["8080:80"] },
+          { name: "eager_turing", image: "hello-world", status: "exited" },
+          { name: "old_api", image: "node:22-alpine", status: "exited" },
+        ],
+        volumes: ["pgdata", "old_data", "cache_data"],
+        buildCache: 890_000_000,
+      },
       title: "Faire le ménage",
-      intro:
-        "Images, conteneurs arrêtés, volumes et cache de build s'accumulent vite. Docker fournit des commandes `prune` pour nettoyer.",
+      intro: "Images, conteneurs arrêtés, volumes et cache de build s'accumulent vite. Docker fournit des commandes `prune` pour nettoyer.",
       steps: [
         {
           instruction: "Affiche l'espace disque utilisé par Docker.",
           rule: { prefixes: [["docker", "system", "df"]] },
           solution: "docker system df",
           hint: "df = disk free (comme sous Linux)",
-          output: `TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
-Images          8         2         2.31GB    1.65GB (71%)
-Containers      5         1         12.4MB    12.3MB (99%)
-Local Volumes   3         1         245MB     180MB (73%)
-Build Cache     42        0         890MB     890MB`,
         },
         {
           instruction: "Supprime tous les conteneurs arrêtés.",
           rule: { prefixes: [["docker", "container", "prune"]] },
           solution: "docker container prune",
           hint: "docker container prune",
-          output: `WARNING! This will remove all stopped containers.
-Are you sure you want to continue? [y/N] y
-Deleted Containers:
-7b2e4d6f8a1c…
-Total reclaimed space: 12.3MB`,
         },
         {
-          instruction: "Supprime les volumes non utilisés.",
-          rule: { prefixes: [["docker", "volume", "prune"]] },
-          solution: "docker volume prune",
-          hint: "Même logique pour les volumes",
-          output: `WARNING! This will remove anonymous local volumes not used by at least one container.
-Are you sure you want to continue? [y/N] y
-Total reclaimed space: 180MB`,
+          instruction: "Supprime tous les volumes non utilisés, y compris les volumes nommés.",
+          rule: { prefixes: [["docker", "volume", "prune"]], flags: [{ names: ["-a", "--all"] }] },
+          solution: "docker volume prune -a",
+          hint: "Sans option, volume prune ne supprime que les volumes anonymes. Ajoute l'option « all ».",
         },
         {
           instruction: "Grand ménage : supprime tout ce qui est inutilisé, y compris toutes les images non utilisées.",
           rule: { prefixes: [["docker", "system", "prune"]], flags: [{ names: ["-a", "--all"] }] },
           solution: "docker system prune -a",
           hint: "docker system prune avec l'option all",
-          output: `WARNING! This will remove:
-  - all stopped containers
-  - all networks not used by at least one container
-  - all images without at least one container associated to them
-  - all build cache
-Are you sure you want to continue? [y/N] y
-Total reclaimed space: 2.54GB`,
         },
       ],
     },
     {
       id: "contextes-desktop",
       kind: "command",
+      setup: {
+        context: "default",
+        containers: [{ name: "web", image: "nginx", ports: ["8080:80"] }],
+      },
       title: "Contextes et diagnostic",
       intro:
         "Un contexte indique à la CLI quel moteur Docker piloter. Docker Desktop crée le contexte `desktop-linux`. Utile si Docker « ne répond pas » : vérifie le contexte actif.",
       steps: [
         {
           instruction: "Liste les contextes Docker.",
-          rule: { prefixes: [["docker", "context", "ls"], ["docker", "context", "list"]] },
+          rule: {
+            prefixes: [
+              ["docker", "context", "ls"],
+              ["docker", "context", "list"],
+            ],
+          },
           solution: "docker context ls",
           hint: "docker context ls",
-          output: `NAME                DESCRIPTION                               DOCKER ENDPOINT
-default             Current DOCKER_HOST based configuration   unix:///var/run/docker.sock
-desktop-linux *     Docker Desktop                            npipe:////./pipe/dockerDesktopLinuxEngine`,
         },
         {
-          instruction: "Bascule sur le contexte desktop-linux.",
+          instruction: "Le contexte actif n'est pas celui de Docker Desktop : bascule sur desktop-linux.",
           rule: { prefixes: [["docker", "context", "use"]], args: ["desktop-linux"] },
           solution: "docker context use desktop-linux",
           hint: "docker context use <nom>",
-          output: `desktop-linux
-Current context is now "desktop-linux"`,
         },
         {
           instruction: "Affiche les processus qui tournent dans le conteneur web.",
-          rule: { prefixes: [["docker", "top"], ["docker", "container", "top"]], args: ["web"] },
+          rule: {
+            prefixes: [
+              ["docker", "top"],
+              ["docker", "container", "top"],
+            ],
+            args: ["web"],
+          },
           solution: "docker top web",
           hint: "Comme la commande Linux top",
-          output: `UID     PID     PPID    C   STIME   TTY   TIME       CMD
-root    2101    2080    0   10:12   ?     00:00:00   nginx: master process nginx -g daemon off;
-101     2150    2101    0   10:12   ?     00:00:00   nginx: worker process`,
         },
         {
           instruction: "Copie le fichier /etc/nginx/nginx.conf du conteneur web vers le dossier courant.",
-          rule: { prefixes: [["docker", "cp"], ["docker", "container", "cp"]], args: ["web:/etc/nginx/nginx.conf", "."] },
+          rule: {
+            prefixes: [
+              ["docker", "cp"],
+              ["docker", "container", "cp"],
+            ],
+            args: ["web:/etc/nginx/nginx.conf", "."],
+          },
           solution: "docker cp web:/etc/nginx/nginx.conf .",
           hint: "docker cp <conteneur>:<chemin> <destination>",
-          output: "Successfully copied 2.56kB to /home/alex/.",
         },
       ],
     },

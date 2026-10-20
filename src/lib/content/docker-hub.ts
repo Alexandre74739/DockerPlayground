@@ -4,7 +4,47 @@ export const dockerHub: Module = {
   id: "docker-hub",
   title: "Docker Hub",
   description: "Rechercher, publier et partager ses images sur le registre Docker Hub.",
-  icon: "☁️",
+  icon: "cloud",
+  videos: [
+    {
+      youtubeId: "bWaCHqrluUk",
+      title: "Créer ses images à partir d'un Dockerfile et les pousser sur Docker Hub",
+      author: "DIGICACTUS",
+      duration: "8:00",
+      lang: "fr",
+    },
+    { youtubeId: "Lu7klFVxvnY", title: "Images : tags, pull et push", author: "xavki", duration: "12:10", lang: "fr" },
+  ],
+  resources: [
+    {
+      title: "Qu'est-ce qu'un registre ?",
+      url: "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/",
+      kind: "doc",
+      lang: "en",
+      description: "Registres, dépôts et tags avec un exercice de publication.",
+    },
+    {
+      title: "Docker Hub",
+      url: "https://docs.docker.com/docker-hub/",
+      kind: "doc",
+      lang: "en",
+      description: "Documentation du registre : comptes, dépôts, limites.",
+    },
+    {
+      title: "Dépôts Docker Hub",
+      url: "https://docs.docker.com/docker-hub/repos/",
+      kind: "doc",
+      lang: "en",
+      description: "Créer, configurer et gérer ses dépôts.",
+    },
+    {
+      title: "Jetons d'accès personnels",
+      url: "https://docs.docker.com/security/for-developers/access-tokens/",
+      kind: "doc",
+      lang: "en",
+      description: "Se connecter avec un PAT plutôt qu'un mot de passe.",
+    },
+  ],
   exercises: [
     {
       id: "rechercher",
@@ -18,10 +58,6 @@ export const dockerHub: Module = {
           rule: { prefixes: [["docker", "search"]], args: ["redis"] },
           solution: "docker search redis",
           hint: "docker search <terme>",
-          output: `NAME                 DESCRIPTION                                     STARS     OFFICIAL
-redis                Redis is the world's fastest data platform…    13000     [OK]
-redis/redis-stack    redis-stack installs a Redis server with…       120
-bitnami/redis        Bitnami container image for Redis              300`,
         },
         {
           instruction: "Recherche uniquement les images officielles de python (filtre is-official=true).",
@@ -32,14 +68,13 @@ bitnami/redis        Bitnami container image for Redis              300`,
           },
           solution: "docker search --filter is-official=true python",
           hint: "--filter is-official=true",
-          output: `NAME      DESCRIPTION                                     STARS     OFFICIAL
-python    Python is an interpreted, interactive, objec…   10000     [OK]`,
         },
       ],
     },
     {
       id: "publier",
       kind: "command",
+      setup: { customImages: [{ ref: "mon-app:1.0", base: "node:22-alpine" }] },
       title: "Publier son image",
       intro:
         "Pour publier, l'image doit être nommée `utilisateur/depot:tag`. Étapes : se connecter, taguer, pousser. Dans cet exercice, ton identifiant Docker Hub est **alex**.",
@@ -49,54 +84,61 @@ python    Python is an interpreted, interactive, objec…   10000     [OK]`,
           rule: { prefixes: [["docker", "login"]] },
           solution: "docker login",
           hint: "docker login",
-          output: `Log in with your Docker ID or email address to push and pull images from Docker Hub.
-Username: alex
-Password:
-Login Succeeded`,
         },
         {
           instruction: "Tague ton image locale mon-app:1.0 en alex/mon-app:1.0.",
-          rule: { prefixes: [["docker", "tag"], ["docker", "image", "tag"]], args: ["mon-app:1.0", "alex/mon-app:1.0"] },
+          rule: {
+            prefixes: [
+              ["docker", "tag"],
+              ["docker", "image", "tag"],
+            ],
+            args: ["mon-app:1.0", "alex/mon-app:1.0"],
+          },
           solution: "docker tag mon-app:1.0 alex/mon-app:1.0",
           hint: "docker tag <source> <utilisateur>/<depot>:<tag>",
-          output: "",
         },
         {
           instruction: "Pousse alex/mon-app:1.0 sur Docker Hub.",
-          rule: { prefixes: [["docker", "push"], ["docker", "image", "push"]], args: ["alex/mon-app:1.0"] },
+          rule: {
+            prefixes: [
+              ["docker", "push"],
+              ["docker", "image", "push"],
+            ],
+            args: ["alex/mon-app:1.0"],
+          },
           solution: "docker push alex/mon-app:1.0",
           hint: "L'inverse de pull",
-          output: `The push refers to repository [docker.io/alex/mon-app]
-5f70bf18a086: Pushed
-a8f3c1e2d4b6: Pushed
-1.0: digest: sha256:3b1f…c9d2 size: 1782`,
         },
         {
           instruction: "Ajoute aussi le tag latest à cette image (alex/mon-app:latest).",
-          rule: { prefixes: [["docker", "tag"], ["docker", "image", "tag"]], args: ["alex/mon-app:1.0", "alex/mon-app:latest"] },
+          rule: {
+            prefixes: [
+              ["docker", "tag"],
+              ["docker", "image", "tag"],
+            ],
+            args: ["alex/mon-app:1.0", "alex/mon-app:latest"],
+          },
           solution: "docker tag alex/mon-app:1.0 alex/mon-app:latest",
           hint: "Un même IMAGE ID peut avoir plusieurs tags",
-          output: "",
         },
         {
           instruction: "Pousse tous les tags du dépôt alex/mon-app en une seule commande.",
           rule: {
-            prefixes: [["docker", "push"], ["docker", "image", "push"]],
+            prefixes: [
+              ["docker", "push"],
+              ["docker", "image", "push"],
+            ],
             flags: [{ names: ["-a", "--all-tags"] }],
             args: ["alex/mon-app"],
           },
           solution: "docker push --all-tags alex/mon-app",
           hint: "Option --all-tags",
-          output: `The push refers to repository [docker.io/alex/mon-app]
-1.0: digest: sha256:3b1f…c9d2 size: 1782
-latest: digest: sha256:3b1f…c9d2 size: 1782`,
         },
         {
           instruction: "Déconnecte-toi de Docker Hub.",
           rule: { prefixes: [["docker", "logout"]] },
           solution: "docker logout",
           hint: "Le contraire de login",
-          output: "Removing login credentials for https://index.docker.io/v1/",
         },
       ],
     },

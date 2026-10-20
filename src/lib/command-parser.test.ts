@@ -3,12 +3,11 @@ import { matchCommand, tokenize } from "./command-parser";
 import type { CommandRule } from "./types";
 
 const runWeb: CommandRule = {
-  prefixes: [["docker", "run"], ["docker", "container", "run"]],
-  flags: [
-    { names: ["-d", "--detach"] },
-    { names: ["-p", "--publish"], value: "8080:80" },
-    { names: ["--name"], value: "web" },
+  prefixes: [
+    ["docker", "run"],
+    ["docker", "container", "run"],
   ],
+  flags: [{ names: ["-d", "--detach"] }, { names: ["-p", "--publish"], value: "8080:80" }, { names: ["--name"], value: "web" }],
   args: ["nginx"],
 };
 

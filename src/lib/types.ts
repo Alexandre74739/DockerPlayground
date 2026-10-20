@@ -1,6 +1,7 @@
 /**
  * Types partagés décrivant le contenu pédagogique (modules, exercices, quiz).
  */
+import type { SimulatorSetup } from "./simulator";
 
 /** Option attendue dans une commande, avec ses alias (ex: ["-d", "--detach"]). */
 export type FlagRule = {
@@ -26,8 +27,6 @@ export type CommandStep = {
   /** Une solution type, affichée sur demande. */
   solution: string;
   hint: string;
-  /** Sortie simulée affichée dans le terminal en cas de succès. */
-  output: string;
 };
 
 export type FileCheck = {
@@ -44,6 +43,8 @@ type BaseExercise = {
 
 export type CommandExercise = BaseExercise & {
   kind: "command";
+  /** État initial de l'environnement simulé (conteneurs, images, fichiers…). */
+  setup?: SimulatorSetup;
   steps: CommandStep[];
 };
 
@@ -66,11 +67,36 @@ export type QuizQuestion = {
   explanation: string;
 };
 
+export type Language = "fr" | "en";
+
+/** Vidéo YouTube (identifiants vérifiés). */
+export type Video = {
+  youtubeId: string;
+  title: string;
+  author: string;
+  duration: string;
+  lang: Language;
+};
+
+export type Resource = {
+  title: string;
+  url: string;
+  kind: "doc" | "lab" | "article";
+  lang: Language;
+  description: string;
+};
+
+/** Nom d'une icône de la bibliothèque lucide (voir components/ui/ModuleIcon). */
+export type ModuleIconName = "rocket" | "layers" | "box" | "hammer" | "database" | "puzzle" | "cloud" | "brush";
+
 export type Module = {
   id: string;
   title: string;
   description: string;
-  icon: string;
+  icon: ModuleIconName;
+  /** Le cours écrit est dans lessons/<id>.md. */
+  videos: Video[];
+  resources: Resource[];
   exercises: Exercise[];
   quiz: QuizQuestion[];
 };

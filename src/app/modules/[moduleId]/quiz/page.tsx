@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Quiz } from "@/components/Quiz";
@@ -22,10 +23,11 @@ export default async function QuizPage({ params }: PageProps<"/modules/[moduleId
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <Link href={`/modules/${mod.id}`} className="text-sm text-brand-600 hover:underline">
-          ← {mod.icon} {mod.title}
+        <Link href={`/modules/${mod.id}`} className="inline-flex items-center gap-1.5 font-mono text-xs text-ink-400 hover:text-neon-400">
+          <ArrowLeft className="h-3.5 w-3.5" /> {mod.title}
         </Link>
-        <h1 className="mt-3 text-2xl font-bold text-brand-950">Quiz : {mod.title}</h1>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">Quiz</h1>
+        <p className="mt-1 text-ink-400">{mod.title} — une seule réponse par question.</p>
       </div>
       <Quiz
         moduleId={mod.id}

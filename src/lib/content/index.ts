@@ -1,4 +1,4 @@
-import type { Exercise, Module } from "../types";
+import type { Exercise, Module, Video } from "../types";
 import { composeModule } from "./compose";
 import { conteneurs } from "./conteneurs";
 import { dockerHub } from "./docker-hub";
@@ -9,16 +9,7 @@ import { premiersPas } from "./premiers-pas";
 import { volumesReseaux } from "./volumes-reseaux";
 
 /** Modules dans l'ordre conseillé de progression. */
-export const modules: Module[] = [
-  premiersPas,
-  images,
-  conteneurs,
-  dockerfile,
-  volumesReseaux,
-  composeModule,
-  dockerHub,
-  maintenance,
-];
+export const modules: Module[] = [premiersPas, images, conteneurs, dockerfile, volumesReseaux, composeModule, dockerHub, maintenance];
 
 export function getModule(moduleId: string): Module | undefined {
   return modules.find((mod) => mod.id === moduleId);
@@ -34,3 +25,28 @@ export function exerciseKey(moduleId: string, exerciseId: string): string {
 }
 
 export const totalExercises = modules.reduce((sum, mod) => sum + mod.exercises.length, 0);
+
+/** Cours complets en vidéo, mis en avant sur l'accueil. */
+export const featuredVideos: Video[] = [
+  {
+    youtubeId: "sn6PlRf-UHk",
+    title: "Tutoriel Docker pour débutants [cours complet en 1 heure]",
+    author: "SFYNX Tutoriel Français",
+    duration: "54:53",
+    lang: "fr",
+  },
+  {
+    youtubeId: "3c-iBn73dDE",
+    title: "Docker Tutorial for Beginners [full course in 3 hours]",
+    author: "TechWorld with Nana",
+    duration: "2:46:15",
+    lang: "en",
+  },
+  {
+    youtubeId: "fqMOX6JJhGo",
+    title: "Docker Tutorial for Beginners — A Full DevOps Course",
+    author: "freeCodeCamp.org",
+    duration: "2:10:18",
+    lang: "en",
+  },
+];

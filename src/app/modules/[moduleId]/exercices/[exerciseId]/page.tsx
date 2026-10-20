@@ -3,9 +3,7 @@ import { ExercisePlayground } from "@/components/exercise/ExercisePlayground";
 import { getExercise, getModule, modules } from "@/lib/content";
 
 export function generateStaticParams() {
-  return modules.flatMap((mod) =>
-    mod.exercises.map((exercise) => ({ moduleId: mod.id, exerciseId: exercise.id })),
-  );
+  return modules.flatMap((mod) => mod.exercises.map((exercise) => ({ moduleId: mod.id, exerciseId: exercise.id })));
 }
 
 export async function generateMetadata({ params }: PageProps<"/modules/[moduleId]/exercices/[exerciseId]">) {

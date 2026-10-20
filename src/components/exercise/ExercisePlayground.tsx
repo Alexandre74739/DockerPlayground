@@ -1,9 +1,12 @@
 "use client";
 
+import { ArrowLeft, ArrowRight, CheckCircle2, FileCode2, SquareTerminal } from "lucide-react";
 import Link from "next/link";
 import { exerciseKey, getExercise, getModule } from "@/lib/content";
 import { markExerciseCompleted, useProgress } from "@/lib/progress";
+import { useHydrated } from "@/lib/use-hydrated";
 import { RichText } from "../RichText";
+import { ButtonLink } from "../ui/Button";
 import { CommandPlayground } from "./CommandPlayground";
 import { FilePlayground } from "./FilePlayground";
 
@@ -19,59 +22,71 @@ type ExercisePlaygroundProps = {
  */
 export function ExercisePlayground({ moduleId, exerciseId }: ExercisePlaygroundProps) {
   const progress = useProgress();
+  const hydrated = useHydrated();
   const mod = getModule(moduleId);
   const exercise = mod && getExercise(mod, exerciseId);
   if (!mod || !exercise) return null;
 
   const key = exerciseKey(mod.id, exercise.id);
-  const alreadyDone = progress.completedExercises.includes(key);
+  const done = progress.completedExercises.includes(key);
   const index = mod.exercises.indexOf(exercise);
   const next = mod.exercises[index + 1];
   const nextHref = next ? `/modules/${mod.id}/exercices/${next.id}` : `/modules/${mod.id}/quiz`;
-  const nextLabel = next ? `Exercice suivant : ${next.title}` : "Passer au quiz du module";
+  const nextLabel = next ? "Exercice suivant" : "Passer au quiz";
 
   const onComplete = () => markExerciseCompleted(key);
+  const KindIcon = exercise.kind === "command" ? SquareTerminal : FileCode2;
 
   return (
     <div className="space-y-6">
-      <div>
-        <nav className="mb-2 text-sm text-brand-600">
-          <Link href={`/modules/${mod.id}`} className="hover:underline">
-            {mod.icon} {mod.title}
-          </Link>
-          <span className="mx-2 text-brand-300">/</span>
-          <span className="text-brand-800">
-            Exercice {index + 1} sur {mod.exercises.length}
-          </span>
-        </nav>
-        <h1 className="flex items-center gap-3 text-2xl font-bold text-brand-950">
-          {exercise.title}
-          {alreadyDone && (
-            <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-700">Réussi ✓</span>
-          )}
-        </h1>
-        <p className="mt-2 max-w-3xl leading-relaxed text-brand-900/80">
-          <RichText text={exercise.intro} />
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="max-w-3xl">
+          <nav className="mb-3 flex items-center gap-2 font-mono text-xs text-ink-400">
+            <Link href={`/modules/${mod.id}`} className="inline-flex items-center gap-1.5 hover:text-neon-400">
+              <ArrowLeft className="h-3.5 w-3.5" /> {mod.title}
+            </Link>
+            <span className="text-ink-600">/</span>
+            <span>
+              exercice {index + 1}/{mod.exercises.length}
+            </span>
+          </nav>
+          <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            <KindIcon className="h-7 w-7 text-azure-400" aria-hidden />
+            {exercise.title}
+            {done && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-neon-950 px-2.5 py-0.5 text-xs font-medium text-neon-400">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Réussi
+              </span>
+            )}
+          </h1>
+          <p className="mt-3 leading-relaxed text-ink-300">
+            <RichText text={exercise.intro} />
+          </p>
+        </div>
+        {done && (
+          <ButtonLink href={nextHref} variant="primary">
+            {nextLabel} <ArrowRight className="h-4 w-4" />
+          </ButtonLink>
+        )}
       </div>
 
-      {exercise.kind === "command" ? (
+      {!hydrated ? (
+        <WorkspaceSkeleton />
+      ) : exercise.kind === "command" ? (
         <CommandPlayground key={key} exercise={exercise} onComplete={onComplete} />
       ) : (
         <FilePlayground key={key} exercise={exercise} onComplete={onComplete} />
       )}
+    </div>
+  );
+}
 
-      {alreadyDone && (
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-brand-200 bg-brand-50 p-4">
-          <p className="font-medium text-brand-900">🎉 Exercice validé !</p>
-          <Link
-            href={nextHref}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            {nextLabel} →
-          </Link>
-        </div>
-      )}
+/** Emplacement réservé pendant le chargement : le simulateur ne tourne que dans le navigateur. */
+function WorkspaceSkeleton() {
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]" aria-busy>
+      <div className="h-72 animate-pulse rounded-xl border border-ink-700 bg-ink-850" />
+      <div className="h-[min(640px,calc(100vh-10rem))] min-h-[420px] animate-pulse rounded-xl border border-ink-700 bg-ink-950" />
     </div>
   );
 }

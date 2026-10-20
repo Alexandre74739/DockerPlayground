@@ -8,12 +8,14 @@ import { useSyncExternalStore } from "react";
  */
 export type Progress = {
   completedExercises: string[];
+  /** Modules dont le cours a été marqué comme lu. */
+  lessonsRead: string[];
   /** Meilleur score par module, en pourcentage. */
   quizScores: Record<string, number>;
 };
 
 const STORAGE_KEY = "docker-playground:progress";
-const EMPTY: Progress = { completedExercises: [], quizScores: {} };
+const EMPTY: Progress = { completedExercises: [], lessonsRead: [], quizScores: {} };
 
 let cache: Progress | null = null;
 const listeners = new Set<() => void>();
@@ -52,6 +54,12 @@ export function markExerciseCompleted(key: string) {
   const current = read();
   if (current.completedExercises.includes(key)) return;
   write({ ...current, completedExercises: [...current.completedExercises, key] });
+}
+
+export function markLessonRead(moduleId: string) {
+  const current = read();
+  if (current.lessonsRead.includes(moduleId)) return;
+  write({ ...current, lessonsRead: [...current.lessonsRead, moduleId] });
 }
 
 export function saveQuizScore(moduleId: string, percent: number) {

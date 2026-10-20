@@ -1,9 +1,11 @@
 "use client";
 
+import { Check, CircleDashed, KeyRound, Play, RotateCcw, X } from "lucide-react";
 import { useState } from "react";
 import type { FileExercise } from "@/lib/types";
 import { CodeEditor } from "../CodeEditor";
 import { RichText } from "../RichText";
+import { Button } from "../ui/Button";
 
 type FilePlaygroundProps = {
   exercise: FileExercise;
@@ -15,7 +17,8 @@ export function FilePlayground({ exercise, onComplete }: FilePlaygroundProps) {
   const [results, setResults] = useState<boolean[] | null>(null);
   const [showSolution, setShowSolution] = useState(false);
 
-  const allPassed = results?.every(Boolean) ?? false;
+  const passed = results?.filter(Boolean).length ?? 0;
+  const allPassed = results !== null && passed === exercise.checks.length;
 
   function verify() {
     const next = exercise.checks.map((check) => check.pattern.test(content));
@@ -30,68 +33,62 @@ export function FilePlayground({ exercise, onComplete }: FilePlaygroundProps) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <div className="space-y-4">
-        <div className="rounded-xl border border-brand-400 bg-white p-4 shadow-md shadow-brand-100">
-          <p className="font-medium text-brand-950">
+    <div className="grid gap-6 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
+      <aside className="flex flex-col gap-4">
+        <section className="rounded-xl border border-ink-700 bg-ink-850 p-4">
+          <h2 className="mb-2 font-mono text-xs uppercase tracking-wider text-ink-400">Mission</h2>
+          <p className="text-sm leading-relaxed text-ink-100">
             <RichText text={exercise.instruction} />
           </p>
-        </div>
+        </section>
 
-        <div className="rounded-xl border border-brand-100 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-brand-900">Points vérifiés</h2>
-          <ul className="space-y-1.5 text-sm">
+        <section className="rounded-xl border border-ink-700 bg-ink-850">
+          <header className="flex items-center justify-between border-b border-ink-700 px-4 py-3">
+            <h2 className="font-mono text-xs uppercase tracking-wider text-ink-400">Vérifications</h2>
+            {results && (
+              <span className="font-mono text-xs text-ink-400">
+                <span className={allPassed ? "text-neon-400" : "text-ink-100"}>{passed}</span>/{exercise.checks.length}
+              </span>
+            )}
+          </header>
+          <ul className="space-y-2 px-4 py-3 text-sm">
             {exercise.checks.map((check, index) => {
-              const passed = results?.[index];
+              const ok = results?.[index];
+              const Icon = ok === undefined ? CircleDashed : ok ? Check : X;
               return (
-                <li key={check.label} className="flex items-center gap-2">
-                  <span
-                    className={`grid h-5 w-5 place-items-center rounded-full text-[0.7rem] ${
-                      passed === undefined
-                        ? "bg-brand-50 text-brand-300"
-                        : passed
-                          ? "bg-brand-600 text-white"
-                          : "bg-rose-100 text-rose-600"
-                    }`}
-                  >
-                    {passed === undefined ? "•" : passed ? "✓" : "✗"}
-                  </span>
-                  <code className="font-mono text-brand-800">{check.label}</code>
+                <li key={check.label} className="flex items-center gap-2.5">
+                  <Icon
+                    className={`h-4 w-4 shrink-0 ${ok === undefined ? "text-ink-500" : ok ? "text-neon-400" : "text-rose-400"}`}
+                    strokeWidth={ok ? 3 : 2}
+                  />
+                  <code className={`font-mono text-xs ${ok === false ? "text-ink-200" : "text-ink-300"}`}>{check.label}</code>
                 </li>
               );
             })}
           </ul>
-          {results && !allPassed && (
-            <p className="mt-3 text-sm text-rose-600">Certains points ne sont pas encore validés. Corrige et vérifie à nouveau.</p>
-          )}
-        </div>
+          {allPassed && <p className="border-t border-ink-700 px-4 py-3 text-sm font-medium text-neon-400">Fichier valide, bien joué !</p>}
+        </section>
 
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={verify}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            Vérifier mon fichier
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowSolution((value) => !value)}
-            className="rounded-lg border border-brand-200 px-4 py-2 text-sm text-brand-700 hover:bg-brand-50"
-          >
-            {showSolution ? "Masquer la solution" : "🔑 Voir la solution"}
-          </button>
-          <button type="button" onClick={reset} className="rounded-lg px-4 py-2 text-sm text-brand-600 hover:bg-brand-50">
-            ↺ Réinitialiser
-          </button>
+          <Button variant="primary" onClick={verify}>
+            <Play className="h-4 w-4" /> Vérifier
+          </Button>
+          <Button onClick={() => setShowSolution((value) => !value)} aria-expanded={showSolution}>
+            <KeyRound className="h-4 w-4 text-azure-400" /> {showSolution ? "Masquer la réponse" : "Voir la réponse"}
+          </Button>
+          <Button variant="ghost" onClick={reset}>
+            <RotateCcw className="h-4 w-4" /> Réinitialiser
+          </Button>
         </div>
 
         {showSolution && (
-          <pre className="overflow-x-auto rounded-xl bg-brand-50 p-4 font-mono text-sm text-brand-900">{exercise.solution}</pre>
+          <pre className="overflow-x-auto rounded-xl border-l-2 border-azure-400 bg-azure-950 p-4 font-mono text-xs leading-relaxed text-azure-200">
+            {exercise.solution}
+          </pre>
         )}
-      </div>
+      </aside>
 
-      <CodeEditor fileName={exercise.fileName} value={content} onChange={setContent} />
+      <CodeEditor fileName={exercise.fileName} value={content} onChange={setContent} onSubmit={verify} />
     </div>
   );
 }

@@ -1,12 +1,51 @@
 import type { Module } from "../types";
+import { API_FS } from "./fixtures";
 
-const run = [["docker", "run"], ["docker", "container", "run"]];
+const run = [
+  ["docker", "run"],
+  ["docker", "container", "run"],
+];
 
 export const conteneurs: Module = {
   id: "conteneurs",
   title: "Les conteneurs",
   description: "Lancer, lister, arrêter, inspecter et entrer dans des conteneurs.",
-  icon: "📦",
+  icon: "box",
+  videos: [
+    { youtubeId: "5AXboiBF8nM", title: "Lancer un conteneur", author: "xavki", duration: "11:47", lang: "fr" },
+    { youtubeId: "Cx0BNPsPmoU", title: "Docker exec vs attach", author: "xavki", duration: "13:24", lang: "fr" },
+    { youtubeId: "eGz9DS-aIeY", title: "you need to learn Docker RIGHT NOW!!", author: "NetworkChuck", duration: "23:19", lang: "en" },
+  ],
+  resources: [
+    {
+      title: "Référence docker run",
+      url: "https://docs.docker.com/reference/cli/docker/container/run/",
+      kind: "doc",
+      lang: "en",
+      description: "Toutes les options de docker run, avec des exemples.",
+    },
+    {
+      title: "Publier des ports",
+      url: "https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/",
+      kind: "doc",
+      lang: "en",
+      description: "Comprendre -p hôte:conteneur avec un exercice pratique.",
+    },
+    {
+      title: "Référence docker exec",
+      url: "https://docs.docker.com/reference/cli/docker/container/exec/",
+      kind: "doc",
+      lang: "en",
+      description: "Exécuter des commandes dans un conteneur en cours d'exécution.",
+    },
+    {
+      title: "Killercoda — scénarios Docker",
+      url: "https://killercoda.com/docker",
+      kind: "lab",
+      lang: "en",
+      description: "Des scénarios interactifs gratuits dans un vrai terminal en ligne.",
+    },
+  ],
   exercises: [
     {
       id: "lancer-serveur-web",
@@ -19,98 +58,123 @@ export const conteneurs: Module = {
           instruction: "Lance nginx en arrière-plan, nommé web, en publiant le port 8080 de ta machine vers le port 80 du conteneur.",
           rule: {
             prefixes: run,
-            flags: [
-              { names: ["-d", "--detach"] },
-              { names: ["-p", "--publish"], value: "8080:80" },
-              { names: ["--name"], value: "web" },
-            ],
+            flags: [{ names: ["-d", "--detach"] }, { names: ["-p", "--publish"], value: "8080:80" }, { names: ["--name"], value: "web" }],
             args: ["nginx"],
           },
           solution: "docker run -d -p 8080:80 --name web nginx",
           hint: "docker run -d -p <hôte>:<conteneur> --name <nom> <image>",
-          output: "a3f1c9e5b7d24f6e8a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f",
         },
         {
           instruction: "Liste les conteneurs en cours d'exécution.",
-          rule: { prefixes: [["docker", "ps"], ["docker", "container", "ls"], ["docker", "container", "list"]] },
+          rule: {
+            prefixes: [
+              ["docker", "ps"],
+              ["docker", "container", "ls"],
+              ["docker", "container", "list"],
+            ],
+          },
           solution: "docker ps",
           hint: "ps = process status",
-          output: `CONTAINER ID   IMAGE   COMMAND                  CREATED          STATUS          PORTS                  NAMES
-a3f1c9e5b7d2   nginx   "/docker-entrypoint.…"   10 seconds ago   Up 9 seconds    0.0.0.0:8080->80/tcp   web`,
         },
         {
           instruction: "Affiche les logs du conteneur web.",
-          rule: { prefixes: [["docker", "logs"], ["docker", "container", "logs"]], args: ["web"] },
+          rule: {
+            prefixes: [
+              ["docker", "logs"],
+              ["docker", "container", "logs"],
+            ],
+            args: ["web"],
+          },
           solution: "docker logs web",
           hint: "docker logs <nom>",
-          output: `/docker-entrypoint.sh: Configuration complete; ready for start up
-2026/10/20 10:12:01 [notice] 1#1: nginx/1.27.2
-2026/10/20 10:12:01 [notice] 1#1: start worker processes
-172.17.0.1 - - [20/Oct/2026:10:12:30 +0000] "GET / HTTP/1.1" 200 615 "-" "Mozilla/5.0"`,
         },
         {
-          instruction: "Suis les logs du conteneur web en temps réel (mode follow).",
+          instruction: "Suis les logs du conteneur web en temps réel (mode follow), puis arrête avec Ctrl+C.",
           rule: {
-            prefixes: [["docker", "logs"], ["docker", "container", "logs"]],
+            prefixes: [
+              ["docker", "logs"],
+              ["docker", "container", "logs"],
+            ],
             flags: [{ names: ["-f", "--follow"] }],
             args: ["web"],
           },
           solution: "docker logs -f web",
           hint: "L'option -f signifie « follow »",
-          output: `172.17.0.1 - - [20/Oct/2026:10:13:02 +0000] "GET / HTTP/1.1" 200 615
-^C`,
         },
       ],
     },
     {
       id: "cycle-de-vie",
       kind: "command",
+      setup: {
+        containers: [
+          { name: "web", image: "nginx", ports: ["8080:80"] },
+          { name: "eager_turing", image: "hello-world", status: "exited" },
+        ],
+      },
       title: "Cycle de vie d'un conteneur",
       intro:
         "Un conteneur peut être arrêté (`stop`), redémarré (`start`, `restart`) puis supprimé (`rm`). Un conteneur arrêté existe toujours : il n'apparaît qu'avec `docker ps -a`.",
       steps: [
         {
           instruction: "Arrête le conteneur web.",
-          rule: { prefixes: [["docker", "stop"], ["docker", "container", "stop"]], args: ["web"] },
+          rule: {
+            prefixes: [
+              ["docker", "stop"],
+              ["docker", "container", "stop"],
+            ],
+            args: ["web"],
+          },
           solution: "docker stop web",
           hint: "docker stop <nom>",
-          output: "web",
         },
         {
           instruction: "Liste TOUS les conteneurs, y compris ceux qui sont arrêtés.",
           rule: {
-            prefixes: [["docker", "ps"], ["docker", "container", "ls"]],
+            prefixes: [
+              ["docker", "ps"],
+              ["docker", "container", "ls"],
+            ],
             flags: [{ names: ["-a", "--all"] }],
           },
           solution: "docker ps -a",
           hint: "-a pour « all »",
-          output: `CONTAINER ID   IMAGE         COMMAND                  CREATED          STATUS                      PORTS   NAMES
-a3f1c9e5b7d2   nginx         "/docker-entrypoint.…"   5 minutes ago    Exited (0) 3 seconds ago            web
-7b2e4d6f8a1c   hello-world   "/hello"                 20 minutes ago   Exited (0) 20 minutes ago           eager_turing`,
         },
         {
           instruction: "Redémarre le conteneur web.",
-          rule: { prefixes: [["docker", "start"], ["docker", "container", "start"], ["docker", "restart"]], args: ["web"] },
+          rule: {
+            prefixes: [
+              ["docker", "start"],
+              ["docker", "container", "start"],
+              ["docker", "restart"],
+            ],
+            args: ["web"],
+          },
           solution: "docker start web",
           hint: "L'inverse de stop",
-          output: "web",
         },
         {
           instruction: "Supprime le conteneur web de force (même s'il tourne).",
           rule: {
-            prefixes: [["docker", "rm"], ["docker", "container", "rm"]],
+            prefixes: [
+              ["docker", "rm"],
+              ["docker", "container", "rm"],
+            ],
             flags: [{ names: ["-f", "--force"] }],
             args: ["web"],
           },
           solution: "docker rm -f web",
           hint: "docker rm avec l'option force",
-          output: "web",
         },
       ],
     },
     {
       id: "mode-interactif",
       kind: "command",
+      setup: {
+        customImages: [{ ref: "mon-api", base: "node:22-alpine", fs: API_FS }],
+        containers: [{ name: "api", image: "mon-api", ports: ["3000:3000"] }],
+      },
       title: "Entrer dans un conteneur",
       intro:
         "`-it` combine `-i` (interactif) et `-t` (terminal) pour obtenir un shell. `--rm` supprime le conteneur automatiquement à sa sortie. `docker exec` exécute une commande dans un conteneur déjà lancé.",
@@ -124,28 +188,31 @@ a3f1c9e5b7d2   nginx         "/docker-entrypoint.…"   5 minutes ago    Exited 
           },
           solution: "docker run -it --rm ubuntu bash",
           hint: "docker run -it --rm <image> <commande>",
-          output: `root@4f2a9c1b3d5e:/# exit
-exit`,
         },
         {
-          instruction: "Un conteneur nommé api tourne. Ouvre un shell sh à l'intérieur.",
+          instruction: "Quitte le shell ubuntu (exit). Un conteneur nommé api tourne déjà : ouvre un shell sh à l'intérieur.",
           rule: {
-            prefixes: [["docker", "exec"], ["docker", "container", "exec"]],
+            prefixes: [
+              ["docker", "exec"],
+              ["docker", "container", "exec"],
+            ],
             flags: [{ names: ["-i", "--interactive"] }, { names: ["-t", "--tty"] }],
             args: ["api", "sh"],
           },
           solution: "docker exec -it api sh",
-          hint: "docker exec -it <conteneur> <commande>",
-          output: "/app # ",
+          hint: "docker exec -it <conteneur> <commande>. L'image est basée sur Alpine : bash n'existe pas, mais sh oui.",
         },
         {
-          instruction: "Sans ouvrir de shell, exécute la commande ls /app dans le conteneur api.",
-          rule: { prefixes: [["docker", "exec"], ["docker", "container", "exec"]], args: ["api", "ls", "/app"] },
+          instruction: "Quitte le shell (exit) puis, sans en ouvrir un nouveau, exécute la commande ls /app dans le conteneur api.",
+          rule: {
+            prefixes: [
+              ["docker", "exec"],
+              ["docker", "container", "exec"],
+            ],
+            args: ["api", "ls", "/app"],
+          },
           solution: "docker exec api ls /app",
           hint: "docker exec <conteneur> <commande> <arguments>",
-          output: `node_modules
-package.json
-server.js`,
         },
       ],
     },
@@ -169,32 +236,29 @@ server.js`,
           },
           solution: "docker run -d --name db -e POSTGRES_PASSWORD=secret postgres",
           hint: "-e NOM=valeur",
-          output: "e8c1f3a5b7d94e2f6a8b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f",
         },
         {
           instruction: "Inspecte le conteneur db.",
-          rule: { prefixes: [["docker", "inspect"], ["docker", "container", "inspect"]], args: ["db"] },
+          rule: {
+            prefixes: [
+              ["docker", "inspect"],
+              ["docker", "container", "inspect"],
+            ],
+            args: ["db"],
+          },
           solution: "docker inspect db",
           hint: "docker inspect <nom>",
-          output: `[
-    {
-        "Id": "e8c1f3a5b7d9…",
-        "Name": "/db",
-        "State": { "Status": "running", "Running": true },
-        "Config": {
-            "Env": ["POSTGRES_PASSWORD=secret", "PGDATA=/var/lib/postgresql/data"]
-        },
-        "NetworkSettings": { "IPAddress": "172.17.0.3" }
-    }
-]`,
         },
         {
           instruction: "Affiche la consommation CPU / mémoire des conteneurs en temps réel.",
-          rule: { prefixes: [["docker", "stats"], ["docker", "container", "stats"]] },
+          rule: {
+            prefixes: [
+              ["docker", "stats"],
+              ["docker", "container", "stats"],
+            ],
+          },
           solution: "docker stats",
           hint: "statistiques…",
-          output: `CONTAINER ID   NAME   CPU %   MEM USAGE / LIMIT     MEM %   NET I/O         BLOCK I/O
-e8c1f3a5b7d9   db     0.02%   38.5MiB / 7.6GiB      0.49%   1.2kB / 0B      0B / 49MB`,
         },
       ],
     },
