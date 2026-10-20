@@ -289,6 +289,47 @@ export const composeEquipe: Module = {
         },
       ],
     },
+    {
+      id: "sante-des-services",
+      kind: "command",
+      title: "Suivre la santé des services",
+      intro:
+        "Un healthcheck rend l'état d'un service visible partout : dans `docker compose ps`, dans `docker inspect` et dans Docker Desktop. C'est aussi ce qu'utilisent les conditions `service_healthy`.",
+      setup: { files: { ...API_SOURCE, "compose.yaml": BASE_COMPOSE, ".env": "DB_PASSWORD=s3cret\n" }, app },
+      steps: [
+        {
+          instruction: "Démarre la stack en arrière-plan.",
+          rule: { prefixes: [["docker", "compose", "up"]], flags: [{ names: ["-d", "--detach"] }] },
+          solution: "docker compose up -d",
+          hint: "docker compose up -d",
+        },
+        {
+          instruction: "Affiche l'état des services : la base doit être (healthy).",
+          rule: { prefixes: [["docker", "compose", "ps"]] },
+          solution: "docker compose ps",
+          hint: "docker compose ps",
+        },
+        {
+          instruction: "Interroge directement l'état de santé du conteneur projet-db-1 (champ .State.Health.Status).",
+          rule: {
+            prefixes: [
+              ["docker", "inspect"],
+              ["docker", "container", "inspect"],
+            ],
+            flags: [{ names: ["-f", "--format"], value: "{{.State.Health.Status}}" }],
+            args: ["projet-db-1"],
+          },
+          solution: "docker inspect --format '{{.State.Health.Status}}' projet-db-1",
+          hint: "docker inspect --format '{{.State.Health.Status}}' <conteneur>",
+        },
+        {
+          instruction: "Consulte les journaux de l'API pour vérifier qu'elle s'est bien connectée à la base.",
+          rule: { prefixes: [["docker", "compose", "logs"]], args: ["api"] },
+          solution: "docker compose logs api",
+          hint: "docker compose logs <service>",
+        },
+      ],
+    },
   ],
   quiz: [
     {

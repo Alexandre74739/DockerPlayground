@@ -15,12 +15,19 @@ Plateforme locale pour apprendre la ligne de commande Docker par la pratique :
 | Parcours | Modules |
 | --- | --- |
 | 1. Fondamentaux | Premiers pas, Images, Conteneurs, Dockerfile, Volumes & réseaux, Compose, Docker Hub, Nettoyage & Docker Desktop |
-| 2. Dockeriser ses applications | Dockeriser une application, Configuration et secrets, Sécurité et optimisation |
-| 3. Travailler en équipe | Compose en équipe, Docker Hub et CI/CD en entreprise, Déboguer et dépanner |
+| 2. Dockeriser ses applications | Dockeriser une application, Dockerfile et .dockerignore avancés, Configuration et secrets, Sécurité et optimisation |
+| 3. Travailler en équipe | Compose en équipe, Docker Hub et CI/CD en entreprise, Déployer sur un VPS avec SSH, Déboguer et dépanner |
 
-Les cas pratiques couvrent : mise en ligne d'un site statique, ménage d'un serveur de CI, dockerisation d'une API,
-environnement de développement Compose, publication d'une release multi-plateforme, résolution d'incident,
-optimisation d'image multi-étapes.
+Les 12 cas pratiques couvrent : mise en ligne d'un site statique, ménage d'un serveur de CI, dockerisation d'une API
+Node.js et d'une API Python (.dockerignore), builds accélérés par le cache, environnement de développement Compose,
+publication d'une release multi-plateforme, workflow GitHub Actions, résolution d'incident, optimisation d'image
+multi-étapes, mise en production sur un VPS et audit de sécurité d'un serveur.
+
+Une page **Ressources** regroupe toutes les vidéos et la documentation, filtrables par type, langue et mot-clé.
+
+Le simulateur gère aussi un **serveur distant** : `ssh`, `scp`, `ssh-keygen`, `ssh-copy-id`, `sudo`, installation de
+Docker, groupe `docker`, contextes `ssh://`, ports liés à `127.0.0.1`, et un **cache de build par couche** qui montre
+l'effet de l'ordre des instructions d'un Dockerfile.
 
 Aucune base de données : la progression est enregistrée dans le `localStorage` du navigateur.
 Aucune commande n'est exécutée sur la machine : tout est simulé.

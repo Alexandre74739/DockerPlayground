@@ -1,4 +1,22 @@
 import type { Module } from "../types";
+import { API_SOURCE } from "./fixtures";
+
+const LOOP_COMPOSE = `services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://postgres:\${DB_PASSWORD}@\${DB_HOST}:5432/app
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: \${DB_PASSWORD}
+`;
 
 const app = { requiredEnv: ["DATABASE_URL"], urlEnv: ["DATABASE_URL"] };
 
@@ -276,6 +294,63 @@ export const debug: Module = {
           },
           solution: "docker exec web cat /etc/nginx/conf.d/default.conf",
           hint: "docker exec <conteneur> cat <fichier>",
+        },
+      ],
+    },
+    {
+      id: "boucle-de-redemarrage",
+      kind: "command",
+      title: "Un service en boucle de redémarrage",
+      intro:
+        "Après un `git pull`, la stack Compose ne démarre plus correctement : l'API apparaît « Restarting ». La configuration attend une variable que ton fichier `.env` ne contient pas encore.",
+      setup: {
+        files: { ...API_SOURCE, "compose.yaml": LOOP_COMPOSE, ".env": "DB_PASSWORD=s3cret\n" },
+        app,
+        commands: ["docker compose up -d"],
+      },
+      steps: [
+        {
+          instruction: "Affiche l'état des services.",
+          rule: { prefixes: [["docker", "compose", "ps"]] },
+          solution: "docker compose ps",
+          hint: "docker compose ps",
+        },
+        {
+          instruction: "Lis les journaux de l'API.",
+          rule: { prefixes: [["docker", "compose", "logs"]], args: ["api"] },
+          solution: "docker compose logs api",
+          hint: "docker compose logs api",
+        },
+        {
+          instruction: "Affiche la configuration résolue pour repérer la variable manquante.",
+          rule: { prefixes: [["docker", "compose", "config"]] },
+          solution: "docker compose config",
+          hint: "Cherche l'avertissement WARN au début de la sortie.",
+        },
+        {
+          instruction: "Ajoute DB_HOST=db au fichier .env.",
+          rule: { prefixes: [["echo", "DB_HOST=db"]] },
+          solution: 'echo "DB_HOST=db" >> .env',
+          hint: 'echo "…" >> .env',
+        },
+        {
+          instruction: "Applique la correction : Compose recrée seulement le service modifié.",
+          rule: { prefixes: [["docker", "compose", "up"]], flags: [{ names: ["-d", "--detach"] }] },
+          solution: "docker compose up -d",
+          hint: "docker compose up -d",
+        },
+        {
+          instruction: "Vérifie que l'API répond.",
+          rule: {
+            prefixes: [
+              ["curl", "localhost:3000"],
+              ["curl", "http://localhost:3000"],
+              ["curl", "localhost:3000/"],
+              ["curl", "http://localhost:3000/"],
+            ],
+          },
+          solution: "curl localhost:3000",
+          hint: "curl localhost:3000",
         },
       ],
     },

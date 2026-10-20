@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { slugify } from "@/lib/slugify";
+import { CopyButton } from "../ui/CopyButton";
 
 function textOf(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -46,9 +47,16 @@ const components: Components = {
     </aside>
   ),
   pre: ({ children }) => (
-    <pre className="my-5 overflow-x-auto rounded-lg border border-ink-800 bg-ink-950 px-5 py-4 font-mono text-[13px] leading-relaxed text-ink-200">
-      {children}
-    </pre>
+    <div className="group relative my-5">
+      <CopyButton
+        text={textOf(children).replace(/\n$/, "")}
+        label="Copier le code"
+        className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+      />
+      <pre className="overflow-x-auto rounded-lg border border-ink-800 bg-ink-950 px-5 py-4 pr-12 font-mono text-[13px] leading-relaxed text-ink-200">
+        {children}
+      </pre>
+    </div>
   ),
   code: ({ className, children }) =>
     className ? (

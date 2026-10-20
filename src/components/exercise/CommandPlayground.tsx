@@ -8,6 +8,7 @@ import { RichText } from "../RichText";
 import { Terminal } from "../Terminal";
 import { Button } from "../ui/Button";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { CopyButton } from "../ui/CopyButton";
 import { Panel } from "./Panel";
 import { type CommandEvent, useSimulator } from "./useSimulator";
 
@@ -128,7 +129,10 @@ export function CommandPlayground({ exercise, onComplete }: CommandPlaygroundPro
               </div>
               {reveal === "hint" && <p className="mt-3 text-sm leading-relaxed text-ink-300">{step.hint}</p>}
               {reveal === "solution" && (
-                <code className="mt-3 block rounded-md bg-ink-950 px-3 py-2 font-mono text-[13px] text-neon-400">{step.solution}</code>
+                <div className="mt-3 flex items-center gap-2 rounded-md bg-ink-950 py-1.5 pl-3 pr-1.5">
+                  <code className="min-w-0 flex-1 break-all font-mono text-[13px] text-neon-400">{step.solution}</code>
+                  <CopyButton text={step.solution} label="Copier la commande" />
+                </div>
               )}
             </div>
           </Panel>

@@ -143,4 +143,43 @@ export const cheatSheet: CheatSheetSection[] = [
       { command: "docker run --read-only image", description: "Système de fichiers en lecture seule" },
     ],
   },
+  {
+    title: "Dockerfile optimisé et .dockerignore",
+    commands: [
+      {
+        command: "COPY package*.json ./ puis RUN npm ci, puis COPY . .",
+        description: "Dépendances avant le code : le cache survit aux modifications",
+      },
+      {
+        command: "RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*",
+        description: "Paquets système en une couche nettoyée",
+      },
+      { command: "RUN --mount=type=cache,target=/root/.npm npm ci", description: "Cache npm conservé entre deux builds" },
+      { command: "ARG APP_VERSION=dev + ENV APP_VERSION=${APP_VERSION}", description: "Paramètre de build conservé dans l'image" },
+      { command: "docker build --build-arg APP_VERSION=1.4.2 -t api:1.4.2 .", description: "Passer un paramètre au build" },
+      { command: "**/*.log", description: ".dockerignore : à tous les niveaux" },
+      { command: "*.md puis !README.md", description: ".dockerignore : exception (après la règle)" },
+    ],
+  },
+  {
+    title: "SSH et VPS",
+    commands: [
+      { command: 'ssh-keygen -t ed25519 -C "moi@acme.fr"', description: "Créer une paire de clés" },
+      { command: "ssh-copy-id deploy@203.0.113.10", description: "Installer sa clé publique sur le serveur" },
+      { command: "ssh deploy@203.0.113.10", description: "Se connecter au serveur" },
+      { command: "scp compose.yaml deploy@203.0.113.10:~/app/", description: "Copier un fichier vers le serveur" },
+      {
+        command: "curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh",
+        description: "Installer Docker sur le serveur",
+      },
+      { command: "sudo usermod -aG docker $USER", description: "Utiliser docker sans sudo (après reconnexion)" },
+      {
+        command: 'docker context create vps --docker "host=ssh://deploy@203.0.113.10"',
+        description: "Piloter le moteur du serveur depuis son poste",
+      },
+      { command: "docker context use vps / docker context use default", description: "Basculer entre le serveur et le poste" },
+      { command: 'ports: ["127.0.0.1:5432:5432"]', description: "Ne publier un port que pour le serveur lui-même" },
+      { command: "nc -zv 203.0.113.10 5432", description: "Vérifier qu'un port est fermé depuis l'extérieur" },
+    ],
+  },
 ];

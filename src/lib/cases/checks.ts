@@ -1,5 +1,6 @@
 import { loadCompose, parseEnvFile } from "../simulator/compose-file";
-import { runHostCommand, type SimState } from "../simulator";
+import { execute, runHostCommand, type SimState } from "../simulator";
+import { activate, machineData } from "../simulator/machines";
 import { PROJECT_DIR } from "../simulator/state";
 import type { Container, Image } from "../simulator/types";
 
@@ -49,3 +50,33 @@ export function diskUsage(state: SimState): number {
 
 export const MB = 1_000_000;
 export const GB = 1_000_000_000;
+
+// ─── Serveurs distants ─────────────────────────────────────────────────────
+
+/** Données à jour d'une machine (poste ou serveur). */
+export function machine(state: SimState, id: string) {
+  return machineData(state, id);
+}
+
+export function remoteContainer(state: SimState, id: string, name: string): Container | undefined {
+  return machine(state, id).containers.find((candidate) => candidate.name === name || candidate.compose?.service === name);
+}
+
+/** Résultat d'une commande lancée depuis le poste, sans modifier l'état. */
+export function probe(state: SimState, argv: string[]): { out: string; code: number } {
+  const local = structuredClone(state);
+  while (local.machine !== "local") activate(local, local.sshStack.pop() ?? "local");
+  return runHostCommand(local, argv);
+}
+
+/**
+ * Rejoue un build après une modification du code seul : la couche
+ * d'installation des dépendances doit sortir du cache.
+ */
+export function rebuildAfterCodeChange(state: SimState, tag: string, file: string): string {
+  let local = structuredClone(state);
+  while (local.machine !== "local") activate(local, local.sshStack.pop() ?? "local");
+  local.files[`${PROJECT_DIR}/${file}`] = `${local.files[`${PROJECT_DIR}/${file}`] ?? ""}\n// modification\n`;
+  local = { ...local, cwd: PROJECT_DIR, context: "default" };
+  return execute(local, `docker build -t ${tag} .`).output;
+}

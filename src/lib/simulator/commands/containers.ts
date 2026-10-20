@@ -28,9 +28,11 @@ function parsePorts(specs: string[]): PortBinding[] | string {
     const parts = spec.split(":");
     const containerPort = parts.at(-1)!;
     const host = parts.length >= 2 ? parts.at(-2)! : String(32768 + ports.length);
+    const ip = parts.length === 3 ? parts[0] : undefined;
+    if (ip && !/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return `docker: invalid IP address: ${ip}.\nSee 'docker run --help'.`;
     if (!/^\d+(\/(tcp|udp))?$/.test(containerPort)) return `docker: invalid containerPort: ${containerPort}.\nSee 'docker run --help'.`;
     if (!/^\d+$/.test(host)) return `docker: invalid hostPort: ${host}.\nSee 'docker run --help'.`;
-    ports.push({ host, container: containerPort });
+    ports.push({ host, container: containerPort, ip });
   }
   return ports;
 }

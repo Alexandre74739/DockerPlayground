@@ -1,30 +1,9 @@
 "use client";
 
-import { Check, Copy, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useState } from "react";
 import type { CheatSheetSection } from "@/lib/types";
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
-        } catch {
-          // Presse-papiers indisponible : rien à faire.
-        }
-      }}
-      className="shrink-0 rounded p-1 text-ink-500 opacity-0 transition group-hover:opacity-100 hover:text-ink-100 focus:opacity-100"
-      aria-label={`Copier ${text}`}
-    >
-      {copied ? <Check className="h-3.5 w-3.5 text-neon-400" /> : <Copy className="h-3.5 w-3.5" />}
-    </button>
-  );
-}
+import { CopyButton } from "./ui/CopyButton";
 
 export function CheatSheet({ sections }: { sections: CheatSheetSection[] }) {
   const [query, setQuery] = useState("");
@@ -56,7 +35,7 @@ export function CheatSheet({ sections }: { sections: CheatSheetSection[] }) {
                 <div key={item.command} className="group py-2.5">
                   <dt className="flex items-center gap-2">
                     <code className="font-mono text-[13px] text-ink-100">{item.command}</code>
-                    <CopyButton text={item.command} />
+                    <CopyButton text={item.command} className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100" />
                   </dt>
                   <dd className="mt-0.5 text-sm text-ink-500">{item.description}</dd>
                 </div>

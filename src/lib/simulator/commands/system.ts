@@ -185,38 +185,41 @@ const prune: CommandDef = {
   },
 };
 
-const CONTEXTS = [
-  { name: "default", description: "Current DOCKER_HOST based configuration", endpoint: "unix:///var/run/docker.sock" },
-  { name: "desktop-linux", description: "Docker Desktop", endpoint: "unix:///home/alex/.docker/desktop/docker.sock" },
-];
-
 const contextLs: CommandDef = {
   path: "context ls",
   aliases: ["context list"],
-  spec: { usage: "docker context ls [OPTIONS]", description: "List contexts", maxArgs: 0 },
-  run: ({ state }) =>
-    ok(
+  spec: {
+    usage: "docker context ls [OPTIONS]",
+    description: "List contexts",
+    maxArgs: 0,
+    options: [{ names: ["-q", "--quiet"], description: "Only show context names" }],
+  },
+  run: ({ state, parsed }) => {
+    const names = Object.keys(state.contexts);
+    if (has(parsed, "--quiet")) return ok(names.join("\n"));
+    return ok(
       table(
         ["NAME", "DESCRIPTION", "DOCKER ENDPOINT", "ERROR"],
-        CONTEXTS.map((context) => [
-          `${context.name}${context.name === state.context ? " *" : ""}`,
-          context.description,
-          context.endpoint,
+        names.map((name) => [
+          `${name}${name === state.context ? " *" : ""}`,
+          state.contexts[name].description,
+          state.contexts[name].endpoint,
           "",
         ]),
       ),
-    ),
+    );
+  },
 };
+
+const notFound = (state: SimState, name: string) =>
+  fail(`context "${name}": context not found: open /home/${state.user}/.docker/contexts/meta/${name}/meta.json: no such file or directory`);
 
 const contextUse: CommandDef = {
   path: "context use",
   spec: { usage: "docker context use CONTEXT", description: "Set the current docker context", minArgs: 1, maxArgs: 1 },
   run: ({ state, parsed }) => {
     const name = parsed.args[0];
-    if (!CONTEXTS.some((context) => context.name === name))
-      return fail(
-        `context "${name}": context not found: open /home/alex/.docker/contexts/meta/${name}/meta.json: no such file or directory`,
-      );
+    if (!state.contexts[name]) return notFound(state, name);
     state.context = name;
     return ok(`${name}\nCurrent context is now "${name}"`);
   },
@@ -228,4 +231,87 @@ const contextShow: CommandDef = {
   run: ({ state }) => ok(state.context),
 };
 
-export const systemCommands: CommandDef[] = [version, info, df, prune, contextLs, contextUse, contextShow];
+const contextCreate: CommandDef = {
+  path: "context create",
+  spec: {
+    usage: "docker context create [OPTIONS] CONTEXT",
+    description: "Create a context",
+    minArgs: 1,
+    maxArgs: 1,
+    options: [
+      { names: ["--description"], value: "string", description: "Description of the context" },
+      { names: ["--docker"], value: "stringToString", description: "set the docker endpoint (default [])" },
+    ],
+  },
+  run: ({ state, parsed }) => {
+    const name = parsed.args[0];
+    if (state.contexts[name]) return fail(`context "${name}" already exists`);
+    const host = value(parsed, "--docker")?.match(/host=([^,]+)/)?.[1];
+    if (!host) return fail('docker endpoint configuration is required (exemple : --docker "host=ssh://user@serveur")');
+    if (!/^(ssh|tcp|unix):\/\//.test(host)) return fail(`unable to parse docker host \`${host}\``);
+    state.contexts[name] = { description: value(parsed, "--description") ?? "", endpoint: host };
+    return ok(`${name}\nSuccessfully created context "${name}"`);
+  },
+};
+
+const contextRm: CommandDef = {
+  path: "context rm",
+  aliases: ["context remove"],
+  spec: {
+    usage: "docker context rm CONTEXT [CONTEXT...]",
+    description: "Remove one or more contexts",
+    minArgs: 1,
+    options: [{ names: ["-f", "--force"], description: "Force the removal of a context in use" }],
+  },
+  run: ({ state, parsed }) => {
+    for (const name of parsed.args) {
+      if (!state.contexts[name]) return notFound(state, name);
+      if (name === "default") return fail("default context cannot be removed");
+      if (name === state.context && !has(parsed, "--force")) {
+        return fail(
+          `failed to remove context ${name}: failed to remove metadata: context "${name}" is in use, set -f flag to force remove`,
+        );
+      }
+      delete state.contexts[name];
+      if (name === state.context) state.context = "default";
+    }
+    return ok(parsed.args.join("\n"));
+  },
+};
+
+const contextInspect: CommandDef = {
+  path: "context inspect",
+  spec: {
+    usage: "docker context inspect [OPTIONS] [CONTEXT] [CONTEXT...]",
+    description: "Display detailed information on one or more contexts",
+  },
+  run: ({ state, parsed }) => {
+    const names = parsed.args.length ? parsed.args : [state.context];
+    const missing = names.find((name) => !state.contexts[name]);
+    if (missing) return notFound(state, missing);
+    return ok(
+      JSON.stringify(
+        names.map((name) => ({
+          Name: name,
+          Metadata: { Description: state.contexts[name].description },
+          Endpoints: { docker: { Host: state.contexts[name].endpoint, SkipTLSVerify: false } },
+        })),
+        null,
+        4,
+      ),
+    );
+  },
+};
+
+export const systemCommands: CommandDef[] = [
+  version,
+  info,
+  df,
+  prune,
+  contextLs,
+  contextUse,
+  contextShow,
+  contextCreate,
+  contextRm,
+  contextInspect,
+];

@@ -7,12 +7,14 @@ import { debug } from "./debug";
 import { dockerHub } from "./docker-hub";
 import { dockerfile } from "./dockerfile";
 import { dockeriser } from "./dockeriser";
+import { dockerfileAvance } from "./dockerfile-avance";
 import { hubEquipe } from "./hub-equipe";
 import { images } from "./images";
 import { maintenance } from "./maintenance";
 import { premiersPas } from "./premiers-pas";
 import { securite } from "./securite";
 import { volumesReseaux } from "./volumes-reseaux";
+import { vps } from "./vps";
 
 /** Modules dans l'ordre conseillé de progression. */
 export const modules: Module[] = [
@@ -25,10 +27,12 @@ export const modules: Module[] = [
   dockerHub,
   maintenance,
   dockeriser,
+  dockerfileAvance,
   configuration,
   securite,
   composeEquipe,
   hubEquipe,
+  vps,
   debug,
 ];
 
@@ -43,14 +47,15 @@ export const tracks: Track[] = [
   {
     id: "dockeriser",
     title: "Dockeriser ses applications",
-    description: "Conteneuriser un vrai projet, gérer sa configuration et produire des images sûres et légères.",
-    moduleIds: ["dockeriser", "configuration", "securite"],
+    description:
+      "Conteneuriser un vrai projet, écrire des Dockerfile rapides à reconstruire, gérer sa configuration et produire des images sûres et légères.",
+    moduleIds: ["dockeriser", "dockerfile-avance", "configuration", "securite"],
   },
   {
     id: "equipe",
     title: "Travailler en équipe",
-    description: "Compose multi-environnements, publication en organisation, CI/CD et dépannage.",
-    moduleIds: ["compose-equipe", "hub-equipe", "debug"],
+    description: "Compose multi-environnements, publication en organisation, CI/CD, déploiement sur un VPS en SSH et dépannage.",
+    moduleIds: ["compose-equipe", "hub-equipe", "vps", "debug"],
   },
 ];
 

@@ -1,7 +1,7 @@
 import { catalog, PUBLISHED_AGO } from "./catalog";
 import { DAY, HOUR, MB, randomHex } from "./format";
 import { buildContainer } from "./container";
-import type { AppBehavior, Container, FileSystem, Image, ImageKind, Network, SimState } from "./types";
+import type { AppBehavior, Container, FileSystem, Image, ImageKind, MachineData, Network, SimState } from "./types";
 
 export const HOME = "/home/alex";
 export const PROJECT_DIR = `${HOME}/projet`;
@@ -47,7 +47,7 @@ export function remoteImage(state: SimState, input: string): Omit<Image, "id"> |
     const alpine = tag.includes("alpine");
     return {
       tags: [full],
-      size: alpine && entry.alpineSize ? entry.alpineSize : entry.size,
+      size: alpine && entry.alpineSize ? entry.alpineSize : tag.includes("slim") && entry.slimSize ? entry.slimSize : entry.size,
       createdAt: Date.now() - PUBLISHED_AGO,
       kind: entry.kind,
       alpine,
@@ -146,8 +146,8 @@ export function generateName(state: SimState): string {
 
 // ─── Système de fichiers de l'hôte ─────────────────────────────────────────
 
-export function resolvePath(cwd: string, path: string): string {
-  const absolute = path.startsWith("/") ? path : path === "~" || path.startsWith("~/") ? HOME + path.slice(1) : `${cwd}/${path}`;
+export function resolvePath(cwd: string, path: string, home = HOME): string {
+  const absolute = path.startsWith("/") ? path : path === "~" || path.startsWith("~/") ? home + path.slice(1) : `${cwd}/${path}`;
   const parts: string[] = [];
   for (const part of absolute.split("/")) {
     if (!part || part === ".") continue;
@@ -171,8 +171,8 @@ export function listDirectory(fs: FileSystem, dirs: string[], path: string): str
   return [...entries].sort();
 }
 
-export function displayPath(path: string): string {
-  return path === HOME ? "~" : path.startsWith(`${HOME}/`) ? `~${path.slice(HOME.length)}` : path;
+export function displayPath(path: string, home = HOME): string {
+  return path === home ? "~" : path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
 }
 
 // ─── Configuration initiale d'un exercice ──────────────────────────────────
@@ -225,6 +225,37 @@ export type SimulatorSetup = {
   app?: Partial<AppBehavior>;
   /** Commandes exécutées pour préparer l'environnement (ex: "docker compose up -d"). */
   commands?: string[];
+  /** Le poste possède déjà une paire de clés ssh. */
+  sshKey?: boolean;
+  /** Serveurs distants, par nom de machine. */
+  machines?: Record<string, MachineSetup>;
+};
+
+/** Serveur distant (VPS) joignable en ssh depuis le poste. */
+export type MachineSetup = Pick<SimulatorSetup, "images" | "customImages" | "containers" | "volumes" | "networks" | "dirs" | "auth"> & {
+  ip: string;
+  names?: string[];
+  user: string;
+  password?: string;
+  passwordAuth?: boolean;
+  dockerInstalled?: boolean;
+  /** L'utilisateur est déjà dans le groupe docker. */
+  dockerGroup?: boolean;
+  /** La clé ssh du poste est déjà autorisée sur le serveur. */
+  authorizeLocalKey?: boolean;
+  /** Le serveur est déjà dans le known_hosts du poste. */
+  knownByLocal?: boolean;
+  /** Fichiers, relatifs au dossier personnel de l'utilisateur. */
+  files?: FileSystem;
+  /** Commandes de préparation, exécutées sur le serveur. */
+  commands?: string[];
+};
+
+const LOCAL_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK8yq0dVn3mZb5lE2pXw7rT4uJ9sC1hF6gQ2aR8eL0oN alex@pc";
+
+export const DEFAULT_CONTEXTS = {
+  default: { description: "Current DOCKER_HOST based configuration", endpoint: "unix:///var/run/docker.sock" },
+  "desktop-linux": { description: "Docker Desktop", endpoint: "unix:///home/alex/.docker/desktop/docker.sock" },
 };
 
 export const DEFAULT_APP: AppBehavior = { port: 3000, response: "Hello from Docker!", requiredEnv: [], urlEnv: [] };
@@ -235,13 +266,23 @@ const BUILTIN_NETWORKS: Network[] = [
   { id: randomHex(64), name: "none", driver: "null", createdAt: Date.now() - 30 * DAY, builtin: true },
 ];
 
-export function createState(setup: SimulatorSetup = {}): SimState {
+type Identity = { user: string; hostname: string; home: string; workdir: string };
+
+const LOCAL_IDENTITY: Identity = { user: "alex", hostname: "pc", home: HOME, workdir: PROJECT_DIR };
+
+export function createState(setup: SimulatorSetup = {}, identity: Identity = LOCAL_IDENTITY): SimState {
+  const base = identity.workdir;
   const state: SimState = {
-    user: "alex",
-    hostname: "pc",
-    cwd: PROJECT_DIR,
+    user: identity.user,
+    hostname: identity.hostname,
+    cwd: base,
     files: {},
-    dirs: [HOME, PROJECT_DIR, ...(setup.dirs ?? []).map((dir) => resolvePath(PROJECT_DIR, dir))],
+    dirs: [...new Set([identity.home, base, ...(setup.dirs ?? []).map((dir) => resolvePath(base, dir, identity.home))])],
+    machine: "local",
+    machines: {},
+    sshStack: [],
+    layerCache: [],
+    contexts: structuredClone(DEFAULT_CONTEXTS),
     images: [],
     containers: [],
     volumes: [],
@@ -263,7 +304,7 @@ export function createState(setup: SimulatorSetup = {}): SimState {
     app: { ...DEFAULT_APP, ...setup.app },
   };
 
-  for (const [path, content] of Object.entries(setup.files ?? {})) state.files[resolvePath(PROJECT_DIR, path)] = content;
+  for (const [path, content] of Object.entries(setup.files ?? {})) state.files[resolvePath(base, path, identity.home)] = content;
 
   for (const ref of setup.images ?? []) {
     const remote = remoteImage(state, ref);
@@ -317,7 +358,12 @@ export function createState(setup: SimulatorSetup = {}): SimState {
         mounts: (spec.volumes ?? []).map((volume) => {
           const [source, target] = volume.split(":");
           const bind = /^[./~]/.test(source);
-          return { type: bind ? "bind" : "volume", source: bind ? resolvePath(PROJECT_DIR, source) : source, target, readOnly: false };
+          return {
+            type: bind ? "bind" : "volume",
+            source: bind ? resolvePath(base, source, identity.home) : source,
+            target,
+            readOnly: false,
+          };
         }),
       },
       Date.now() - 2 * HOUR,
@@ -327,7 +373,75 @@ export function createState(setup: SimulatorSetup = {}): SimState {
     container.fs = { ...container.fs, ...spec.fs };
     state.containers.push(container);
   }
+  if (identity !== LOCAL_IDENTITY) return state;
+
+  // Poste local : Docker Desktop installé, utilisateur dans le groupe docker.
+  if (setup.sshKey) {
+    state.files[`${HOME}/.ssh/id_ed25519`] =
+      "-----BEGIN OPENSSH PRIVATE KEY-----\n(clé privée simulée)\n-----END OPENSSH PRIVATE KEY-----\n";
+    state.files[`${HOME}/.ssh/id_ed25519.pub`] = `${LOCAL_KEY}\n`;
+  }
+  state.machines.local = {
+    ip: "192.168.1.20",
+    names: ["pc", "localhost"],
+    os: "Ubuntu 24.04.1 LTS (WSL)",
+    dockerInstalled: true,
+    dockerGroup: [identity.user],
+    pendingGroup: [],
+    password: "alex",
+    passwordAuth: true,
+    authorizedKeys: [],
+    data: snapshotOf(state),
+  };
+  for (const [id, machine] of Object.entries(setup.machines ?? {})) {
+    const home = machine.user === "root" ? "/root" : `/home/${machine.user}`;
+    const remote = createState(
+      { ...machine, files: machine.files, context: "default" },
+      { user: machine.user, hostname: id, home, workdir: home },
+    );
+    remote.contexts = { default: DEFAULT_CONTEXTS.default };
+    state.machines[id] = {
+      ip: machine.ip,
+      names: machine.names ?? [],
+      os: "Ubuntu 24.04.1 LTS",
+      dockerInstalled: machine.dockerInstalled ?? false,
+      dockerGroup: machine.dockerGroup ? [machine.user] : [],
+      pendingGroup: [],
+      password: machine.password ?? "changeme",
+      passwordAuth: machine.passwordAuth ?? true,
+      authorizedKeys: machine.authorizeLocalKey ? [LOCAL_KEY] : [],
+      data: snapshotOf(remote),
+    };
+    if (machine.knownByLocal) {
+      const knownHosts = [machine.ip, ...(machine.names ?? [])].map(
+        (host) => `${host} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHb3rP0Fq2sXvKZ1pYy8eW4Lm6Tn0Qd5Rj7Uk9Sa2Vc`,
+      );
+      state.files[`${HOME}/.ssh/known_hosts`] = `${state.files[`${HOME}/.ssh/known_hosts`] ?? ""}${knownHosts.join("\n")}\n`;
+    }
+  }
+  if (Object.keys(state.files).some((path) => path.startsWith(`${HOME}/.ssh/`))) state.dirs.push(`${HOME}/.ssh`);
   return state;
+}
+
+function snapshotOf(state: SimState): MachineData {
+  const { user, hostname, cwd, files, dirs, images, containers, volumes, networks, buildCache, layerCache, auth, context, contexts } =
+    state;
+  return structuredClone({
+    user,
+    hostname,
+    cwd,
+    files,
+    dirs,
+    images,
+    containers,
+    volumes,
+    networks,
+    buildCache,
+    layerCache,
+    auth,
+    context,
+    contexts,
+  });
 }
 
 export function cloneState(state: SimState): SimState {

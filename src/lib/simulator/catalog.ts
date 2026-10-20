@@ -11,6 +11,7 @@ export type CatalogEntry = {
   stars: number;
   size: number;
   alpineSize?: number;
+  slimSize?: number;
   cmd: string[];
   workdir?: string;
   exposed?: string[];
@@ -103,6 +104,7 @@ export const catalog: Record<string, CatalogEntry> = {
     stars: 13_700,
     size: 1.12 * 1000 * MB,
     alpineSize: 157 * MB,
+    slimSize: 225 * MB,
     cmd: ["node"],
     env: ["NODE_VERSION=22.11.0", "YARN_VERSION=1.22.22"],
     longRunning: false,
@@ -175,6 +177,7 @@ export const catalog: Record<string, CatalogEntry> = {
     stars: 9_900,
     size: 1.02 * 1000 * MB,
     alpineSize: 57.6 * MB,
+    slimSize: 131 * MB,
     cmd: ["python3"],
     env: ["PYTHON_VERSION=3.13.0"],
     longRunning: false,

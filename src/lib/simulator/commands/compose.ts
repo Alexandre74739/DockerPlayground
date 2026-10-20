@@ -172,7 +172,11 @@ const up: CommandDef = {
       const mounts = serviceMounts(project, service);
       const ports = service.ports.map((port) => {
         const parts = port.split(":");
-        return { host: parts.length > 1 ? parts.at(-2)! : String(32768 + items.length), container: parts.at(-1)! };
+        return {
+          host: parts.length > 1 ? parts.at(-2)! : String(32768 + items.length),
+          container: parts.at(-1)!,
+          ip: parts.length === 3 ? parts[0] : undefined,
+        };
       });
       const configHash = JSON.stringify([
         image.id,
@@ -415,6 +419,20 @@ const build: CommandDef = {
   }),
 };
 
+const pull: CommandDef = {
+  path: "compose pull",
+  spec: { usage: "docker compose pull [OPTIONS] [SERVICE...]", description: "Pull service images" },
+  run: withProject((state, project) => {
+    const items: [string, string][] = [];
+    for (const service of project.services.filter((candidate) => candidate.image)) {
+      const result = pullImage(state, service.image!, { quietTag: true });
+      if (!result.image) return fail(join(` ✘ ${service.name} Error ${result.output}`, `Error response from daemon: ${result.output}`));
+      items.push([service.name, "Pulled"]);
+    }
+    return ok(items.length ? progress("Pulling", items) : "");
+  }),
+};
+
 const config: CommandDef = {
   path: "compose config",
   spec: {
@@ -455,6 +473,7 @@ export const composeCommands: CommandDef[] = [
   lifecycle("start", "Running", "Start services"),
   lifecycle("restart", "Restarting", "Restart service containers"),
   build,
+  pull,
   config,
   imagesCommand,
 ];

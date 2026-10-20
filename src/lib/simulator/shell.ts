@@ -1,6 +1,7 @@
 import { catalog, osRelease, shellsFor } from "./catalog";
 import { shortId } from "./format";
-import { displayPath, HOME, isDirectory, listDirectory, resolvePath } from "./state";
+import { current, findMachine, homeOf, machineData } from "./machines";
+import { displayPath, isDirectory, listDirectory, resolvePath } from "./state";
 import { setExited } from "./runtime";
 import type { Container, FileSystem, ShellName, SimState } from "./types";
 
@@ -44,10 +45,18 @@ function lsLong(names: string[], isDir: (name: string) => boolean, size: (name: 
   ].join("\n");
 }
 
-function ls(args: string[], cwd: string, fs: FileSystem, dirs: string[], owner: string, notFound: (path: string) => string): ShellOutput {
+function ls(
+  args: string[],
+  cwd: string,
+  fs: FileSystem,
+  dirs: string[],
+  owner: string,
+  notFound: (path: string) => string,
+  home?: string,
+): ShellOutput {
   const flags = args.filter((arg) => arg.startsWith("-")).join("");
   const target = args.find((arg) => !arg.startsWith("-")) ?? ".";
-  const path = resolvePath(cwd, target);
+  const path = resolvePath(cwd, target, home);
   if (fs[path] !== undefined) return { out: target, code: 0 };
   if (!isDirectory(fs, dirs, path)) return { out: notFound(target), code: 2 };
   const all = flags.includes("a");
@@ -67,12 +76,12 @@ function ls(args: string[], cwd: string, fs: FileSystem, dirs: string[], owner: 
   return { out: entries.join("  "), code: 0 };
 }
 
-function cat(args: string[], cwd: string, fs: FileSystem, dirs: string[], prefix: string): ShellOutput {
+function cat(args: string[], cwd: string, fs: FileSystem, dirs: string[], prefix: string, home?: string): ShellOutput {
   if (args.length === 0) return { out: "", code: 0 };
   const outputs: string[] = [];
   let code = 0;
   for (const arg of args) {
-    const path = resolvePath(cwd, arg);
+    const path = resolvePath(cwd, arg, home);
     if (fs[path] !== undefined) outputs.push(fs[path]);
     else {
       outputs.push(`${prefix}${arg}: ${isDirectory(fs, dirs, path) ? "Is a directory" : "No such file or directory"}`);
@@ -85,7 +94,7 @@ function cat(args: string[], cwd: string, fs: FileSystem, dirs: string[], prefix
 // ─── Shell de l'hôte ───────────────────────────────────────────────────────
 
 export function hostPrompt(state: SimState): string {
-  return `${state.user}@${state.hostname}:${displayPath(state.cwd)}$`;
+  return `${state.user}@${state.hostname}:${displayPath(state.cwd, homeOf(state.user))}${state.user === "root" ? "#" : "$"}`;
 }
 
 const HOST_HELP = `GNU bash, version 5.2.21(1)-release (x86_64-pc-linux-gnu)
@@ -94,18 +103,44 @@ Commandes disponibles dans ce terminal d'entraînement :
   ls, cd, pwd     naviguer dans les fichiers
   cat FICHIER     afficher un fichier
   curl URL        tester un port publié (ex: curl localhost:8080)
+  nc -zv HÔTE P   tester l'ouverture d'un port
+  ssh, scp        se connecter à un serveur, copier des fichiers
+  ssh-keygen      créer une paire de clés ssh
+  sudo CMD        exécuter en administrateur (sur un serveur)
   clear           effacer l'écran (ou Ctrl+L)`;
 
-function curl(state: SimState, args: string[]): ShellOutput {
-  const url = args.find((arg) => !arg.startsWith("-"));
-  if (!url) return { out: "curl: try 'curl --help' or 'curl --manual' for more information", code: 2 };
-  const match = url.match(/^(?:https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(?::(\d+))?(\/.*)?$/);
-  if (!match) return { out: `curl: (6) Could not resolve host: ${url.replace(/^https?:\/\//, "").split(/[/:]/)[0]}`, code: 6 };
-  const port = match[2] ?? "80";
-  const container = state.containers.find(
-    (candidate) => candidate.status === "running" && candidate.ports.some((bind) => bind.host === port),
+type Endpoint = { data: ReturnType<typeof machineData>; local: boolean; host: string };
+
+/** Machine visée par une adresse : la machine courante (localhost) ou une autre, par IP ou nom. */
+function endpoint(state: SimState, host: string): Endpoint | undefined {
+  if (["localhost", "127.0.0.1", "0.0.0.0"].includes(host)) return { data: machineData(state, state.machine), local: true, host };
+  const id = findMachine(state, host);
+  return id ? { data: machineData(state, id), local: false, host } : undefined;
+}
+
+/** Conteneur qui publie ce port, joignable depuis l'appelant (un port lié à 127.0.0.1 ne l'est que localement). */
+function publishedOn(target: Endpoint, port: string): Container | undefined {
+  return target.data.containers.find(
+    (candidate) =>
+      candidate.status === "running" &&
+      candidate.ports.some((bind) => bind.host === port && (target.local || !bind.ip || bind.ip === "0.0.0.0")),
   );
-  if (!container) return { out: `curl: (7) Failed to connect to localhost port ${port} after 0 ms: Couldn't connect to server`, code: 7 };
+}
+
+function curl(state: SimState, args: string[]): ShellOutput {
+  const url = args.find((arg) => !arg.startsWith("-") && !/^\d+$/.test(arg));
+  if (!url) return { out: "curl: try 'curl --help' or 'curl --manual' for more information", code: 2 };
+  const match = url.match(/^(?:https?:\/\/)?([\w.-]+)(?::(\d+))?(\/.*)?$/);
+  const target = match ? endpoint(state, match[1]) : undefined;
+  if (!match || !target) return { out: `curl: (6) Could not resolve host: ${url.replace(/^https?:\/\//, "").split(/[/:]/)[0]}`, code: 6 };
+  const port = match[2] ?? (url.startsWith("https") ? "443" : "80");
+  const container = publishedOn(target, port);
+  if (!container) {
+    return {
+      out: `curl: (7) Failed to connect to ${match[1]} port ${port} after ${target.local ? 0 : 31} ms: Couldn't connect to server`,
+      code: 7,
+    };
+  }
   const bind = container.ports.find((candidate) => candidate.host === port)!;
   const docRoot = container.kind === "nginx" ? "/usr/share/nginx/html" : container.kind === "httpd" ? "/usr/local/apache2/htdocs" : null;
   const listening = docRoot ? "80" : container.kind === "app" ? String(state.app.port) : undefined;
@@ -113,7 +148,7 @@ function curl(state: SimState, args: string[]): ShellOutput {
     return { out: "curl: (56) Recv failure: Connection reset by peer", code: 56 };
   if (docRoot) {
     const mount = container.mounts.find((candidate) => candidate.type === "bind" && candidate.target === docRoot);
-    const page = mount ? state.files[`${mount.source}/index.html`] : container.fs[`${docRoot}/index.html`];
+    const page = mount ? target.data.files[`${mount.source}/index.html`] : container.fs[`${docRoot}/index.html`];
     return page
       ? { out: page, code: 0 }
       : {
@@ -125,6 +160,19 @@ function curl(state: SimState, args: string[]): ShellOutput {
   return { out: "curl: (52) Empty reply from server", code: 52 };
 }
 
+/** nc -zv HÔTE PORT : test d'ouverture d'un port. */
+function netcat(state: SimState, args: string[]): ShellOutput {
+  const [host, port] = args.filter((arg) => !arg.startsWith("-"));
+  if (!host || !port) return { out: "usage: nc [-46CDdFhklNnrStUuvZz] [destination] [port]", code: 1 };
+  const target = endpoint(state, host);
+  if (!target) return { out: `nc: getaddrinfo for host "${host}" port ${port}: Name or service not known`, code: 1 };
+  return publishedOn(target, port)
+    ? { out: `Connection to ${host} ${port} port [tcp/*] succeeded!`, code: 0 }
+    : { out: `nc: connect to ${host} port ${port} (tcp) failed: Connection refused`, code: 1 };
+}
+
+const OS_RELEASE = 'PRETTY_NAME="Ubuntu 24.04.1 LTS"\nNAME="Ubuntu"\nVERSION_ID="24.04"\nVERSION="24.04.1 LTS (Noble Numbat)"\nID=ubuntu';
+
 /** Redirections simples : commande > fichier, commande >> fichier. */
 export function runHostCommand(state: SimState, argv: string[]): ShellOutput {
   const index = argv.findIndex((token) => token.startsWith(">"));
@@ -134,7 +182,7 @@ export function runHostCommand(state: SimState, argv: string[]): ShellOutput {
   if (!target) return { out: "bash: syntax error near unexpected token `newline'", code: 2 };
   const result = runHostProgram(state, argv.slice(0, index));
   if (result.code === 127) return result;
-  const path = resolvePath(state.cwd, target);
+  const path = resolvePath(state.cwd, target, homeOf(state.user));
   const previous = state.files[path] ?? "";
   const text = result.out ? `${result.out}\n` : "";
   state.files[path] = operator === ">>" ? `${previous}${previous && !previous.endsWith("\n") ? "\n" : ""}${text}` : text;
@@ -154,11 +202,12 @@ function runHostProgram(state: SimState, argv: string[]): ShellOutput {
         state.dirs,
         owner,
         (path) => `ls: cannot access '${path}': No such file or directory`,
+        homeOf(state.user),
       );
     case "pwd":
       return { out: state.cwd, code: 0 };
     case "cd": {
-      const path = resolvePath(state.cwd, args[0] ?? HOME);
+      const path = resolvePath(state.cwd, args[0] ?? homeOf(state.user), homeOf(state.user));
       if (state.files[path] !== undefined) return { out: `bash: cd: ${args[0]}: Not a directory`, code: 1 };
       if (!isDirectory(state.files, state.dirs, path) && path !== "/home") {
         return { out: `bash: cd: ${args[0]}: No such file or directory`, code: 1 };
@@ -167,27 +216,56 @@ function runHostProgram(state: SimState, argv: string[]): ShellOutput {
       return { out: "", code: 0 };
     }
     case "cat":
-      return cat(args, state.cwd, state.files, state.dirs, "cat: ");
+      if (args[0] === "/etc/os-release") return { out: OS_RELEASE, code: 0 };
+      return cat(args, state.cwd, state.files, state.dirs, "cat: ", homeOf(state.user));
     case "echo":
       return { out: args.join(" "), code: 0 };
     case "whoami":
       return { out: state.user, code: 0 };
     case "hostname":
-      return { out: state.hostname, code: 0 };
+      return { out: args.includes("-I") ? current(state).ip : state.hostname, code: 0 };
+    case "id": {
+      const groups = [`1000(${state.user})`, "27(sudo)", ...(current(state).dockerGroup.includes(state.user) ? ["988(docker)"] : [])];
+      return {
+        out:
+          state.user === "root"
+            ? "uid=0(root) gid=0(root) groups=0(root)"
+            : `uid=1000(${state.user}) gid=1000(${state.user}) groups=${groups.join(",")}`,
+        code: 0,
+      };
+    }
+    case "groups":
+      return { out: [state.user, "sudo", ...(current(state).dockerGroup.includes(state.user) ? ["docker"] : [])].join(" "), code: 0 };
+    case "uname":
+      return { out: args.includes("-a") ? `Linux ${state.hostname} 6.8.0-48-generic #48-Ubuntu SMP x86_64 GNU/Linux` : "Linux", code: 0 };
+    case "nc":
+      return netcat(state, args);
     case "mkdir": {
-      for (const arg of args.filter((value) => !value.startsWith("-"))) state.dirs.push(resolvePath(state.cwd, arg));
+      for (const arg of args.filter((value) => !value.startsWith("-"))) state.dirs.push(resolvePath(state.cwd, arg, homeOf(state.user)));
       return { out: "", code: 0 };
     }
     case "touch": {
       for (const arg of args) {
-        const path = resolvePath(state.cwd, arg);
+        const path = resolvePath(state.cwd, arg, homeOf(state.user));
         state.files[path] ??= "";
       }
       return { out: "", code: 0 };
     }
+    case "cp":
+    case "mv": {
+      const [source, destination] = args.filter((value) => !value.startsWith("-"));
+      if (!source || !destination) return { out: `${program}: missing file operand`, code: 1 };
+      const from = resolvePath(state.cwd, source, homeOf(state.user));
+      if (state.files[from] === undefined) return { out: `${program}: cannot stat '${source}': No such file or directory`, code: 1 };
+      let to = resolvePath(state.cwd, destination, homeOf(state.user));
+      if (isDirectory(state.files, state.dirs, to)) to = `${to}/${from.split("/").pop()}`;
+      state.files[to] = state.files[from];
+      if (program === "mv") delete state.files[from];
+      return { out: "", code: 0 };
+    }
     case "rm": {
       for (const arg of args.filter((value) => !value.startsWith("-"))) {
-        const path = resolvePath(state.cwd, arg);
+        const path = resolvePath(state.cwd, arg, homeOf(state.user));
         if (state.files[path] === undefined) return { out: `rm: cannot remove '${arg}': No such file or directory`, code: 1 };
         delete state.files[path];
       }

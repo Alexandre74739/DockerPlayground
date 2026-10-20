@@ -105,7 +105,9 @@ export type ModuleIconName =
   | "shield"
   | "users"
   | "git"
-  | "bug";
+  | "bug"
+  | "file"
+  | "server";
 
 /** Parcours : suite de modules autour d'un objectif. */
 export type Track = {

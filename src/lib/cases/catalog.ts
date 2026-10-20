@@ -1,6 +1,7 @@
 import { API_SOURCE } from "../content/fixtures";
 import { PROJECT_DIR } from "../simulator/state";
 import { compose, container, diskUsage, dotenv, env, GB, http, image, isRunning, MB, projectFile } from "./checks";
+import { vpsCases } from "./catalog-vps";
 import type { PracticeCase } from "./types";
 
 const MARKETING_SITE = {
@@ -62,7 +63,7 @@ CMD ["npx", "serve", "-s", "dist", "-l", "3000"]
   ".dockerignore": "node_modules\n.git\n",
 };
 
-export const cases: PracticeCase[] = [
+const baseCases: PracticeCase[] = [
   {
     id: "site-vitrine",
     summary: "Servir le site statique de l'équipe marketing avec nginx, en lecture seule et avec redémarrage automatique.",
@@ -621,6 +622,9 @@ EXPOSE 80
     },
   },
 ];
+
+/** Tous les cas pratiques, dans l'ordre d'affichage par niveau. */
+export const cases: PracticeCase[] = [...baseCases, ...vpsCases];
 
 export function getCase(caseId: string): PracticeCase | undefined {
   return cases.find((practice) => practice.id === caseId);

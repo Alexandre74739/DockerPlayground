@@ -194,6 +194,43 @@ export const dockeriser: Module = {
         },
       ],
     },
+    {
+      id: "dockerignore-python",
+      kind: "file",
+      title: "Le .dockerignore d'un projet Python",
+      intro:
+        "Un projet Python traîne souvent un environnement virtuel (`.venv`), des caches (`__pycache__`, `*.pyc`), des notebooks et des jeux de données volumineux. Rien de tout cela ne doit partir dans l'image.",
+      fileName: ".dockerignore",
+      instruction:
+        "Exclus .venv, __pycache__ (à tous les niveaux), les fichiers *.pyc, .pytest_cache, .env, le dossier notebooks et tout le dossier data… SAUF le fichier data/reference.csv dont l'application a besoin.",
+      starter: "",
+      checks: [
+        { pattern: /^\/?\.venv\/?\s*$/m, label: ".venv" },
+        { pattern: /^\*\*\/__pycache__\/?\s*$/m, label: "**/__pycache__" },
+        { pattern: /^(\*\*\/)?\*\.pyc\s*$/m, label: "*.pyc" },
+        { pattern: /^\/?\.pytest_cache\/?\s*$/m, label: ".pytest_cache" },
+        { pattern: /^\.env\s*$/m, label: ".env" },
+        { pattern: /^\/?notebooks\/?\s*$/m, label: "notebooks" },
+        { pattern: /^\/?data\/?(\*\*?)?\s*$/m, label: "data (tout le dossier)" },
+        { pattern: /^!data\/reference\.csv\s*$/m, label: "!data/reference.csv" },
+        {
+          pattern: /^!data\/reference\.csv[\s\S]*^\/?data\/?(\*\*?)?\s*$/m,
+          label: "L'exception vient après l'exclusion de data",
+          absent: true,
+        },
+      ],
+      solution: `.venv
+**/__pycache__
+*.pyc
+.pytest_cache
+.env
+notebooks
+
+# Données : on n'embarque que le référentiel
+data/*
+!data/reference.csv
+`,
+    },
   ],
   quiz: [
     {

@@ -249,7 +249,7 @@ export function portsText(state: SimState, container: Container): string {
   if (container.status !== "running") return "";
   const image = state.images.find((candidate) => candidate.id === container.imageId);
   const bound = container.ports.map(
-    (port) => `0.0.0.0:${port.host}->${port.container.includes("/") ? port.container : `${port.container}/tcp`}`,
+    (port) => `${port.ip ?? "0.0.0.0"}:${port.host}->${port.container.includes("/") ? port.container : `${port.container}/tcp`}`,
   );
   const exposed = (image?.exposed ?? []).filter(
     (port) => !container.ports.some((bind) => port.startsWith(`${bind.container.split("/")[0]}/`)),
@@ -267,7 +267,7 @@ export function inspectContainer(state: SimState, container: Container) {
   const running = container.status === "running";
   const iso = (time: number) => new Date(time).toISOString();
   const portMap = Object.fromEntries(
-    container.ports.map((port) => [`${port.container.split("/")[0]}/tcp`, [{ HostIp: "0.0.0.0", HostPort: port.host }]]),
+    container.ports.map((port) => [`${port.container.split("/")[0]}/tcp`, [{ HostIp: port.ip ?? "0.0.0.0", HostPort: port.host }]]),
   );
   return {
     Id: container.id,

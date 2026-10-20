@@ -35,7 +35,12 @@ export type Image = {
   buildKey?: string;
 };
 
-export type PortBinding = { host: string; container: string };
+export type PortBinding = {
+  host: string;
+  container: string;
+  /** Adresse d'écoute sur l'hôte (0.0.0.0 par défaut, 127.0.0.1 = accessible seulement depuis la machine). */
+  ip?: string;
+};
 
 export type Mount = { type: "volume" | "bind"; source: string; target: string; readOnly: boolean };
 
@@ -83,6 +88,8 @@ export type ShellName = "sh" | "bash" | "node" | "python";
 
 export type ShellSession = {
   containerId: string;
+  /** Machine dont le moteur héberge le conteneur (contexte distant). */
+  machine?: string;
   shell: ShellName;
   cwd: string;
   /** Le conteneur s'arrête à la sortie (cas de docker run -it). */
@@ -108,6 +115,48 @@ export type AppBehavior = {
   urlEnv: string[];
 };
 
+/** Contexte Docker : quel moteur la CLI pilote. */
+export type DockerContext = { description: string; endpoint: string };
+
+/** Données propres à une machine, échangées quand on change de machine (ssh). */
+export type MachineData = Pick<
+  SimState,
+  | "user"
+  | "hostname"
+  | "cwd"
+  | "files"
+  | "dirs"
+  | "images"
+  | "containers"
+  | "volumes"
+  | "networks"
+  | "buildCache"
+  | "layerCache"
+  | "auth"
+  | "context"
+  | "contexts"
+>;
+
+export type Machine = {
+  ip: string;
+  /** Noms DNS de la machine (ex: vps.acme.fr). */
+  names: string[];
+  os: string;
+  dockerInstalled: boolean;
+  /** Utilisateurs effectivement membres du groupe docker. */
+  dockerGroup: string[];
+  /** Ajoutés au groupe docker, effectif à la prochaine connexion. */
+  pendingGroup: string[];
+  password: string;
+  passwordAuth: boolean;
+  authorizedKeys: string[];
+  /** Mot de passe sudo déjà saisi dans la session. */
+  sudoCached?: boolean;
+  ufw?: { enabled: boolean; rules: string[] };
+  /** Instantané des données quand la machine n'est pas active. */
+  data: MachineData;
+};
+
 export type SimState = {
   user: string;
   hostname: string;
@@ -119,6 +168,14 @@ export type SimState = {
   volumes: Volume[];
   networks: Network[];
   shell: ShellSession | null;
+  /** Machine active ("local" = le poste de travail). */
+  machine: string;
+  machines: Record<string, Machine>;
+  /** Machines d'origine des sessions ssh ouvertes. */
+  sshStack: string[];
+  /** Clés des couches déjà construites (cache BuildKit). */
+  layerCache: string[];
+  contexts: Record<string, DockerContext>;
   /** Utilisateur connecté à Docker Hub. */
   auth: string | null;
   /** Organisations Docker Hub dont l'utilisateur est membre. */

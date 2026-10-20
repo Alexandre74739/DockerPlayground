@@ -79,25 +79,41 @@ function globToRegex(pattern: string): RegExp {
     .replace(/^\.\//, "")
     .replace(/\/$/, "")
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\?/g, "[^/]")
+    .replace(/^\*\*\//, "§§")
     .replace(/\*\*/g, "§")
     .replace(/\*/g, "[^/]*")
-    .replace(/§/g, ".*")
-    .replace(/\?/g, ".");
+    .replace(/§§/, "(?:.*/)?")
+    .replace(/§/g, ".*");
   return new RegExp(`^${escaped}(/.*)?$`);
+}
+
+/** Règles du .dockerignore : la dernière règle qui correspond l'emporte (les « ! » ré-incluent). */
+export function dockerignoreRules(content: string): { regex: RegExp; include: boolean }[] {
+  return content
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"))
+    .map((line) => {
+      const include = line.startsWith("!");
+      return { regex: globToRegex(line.replace(/^!/, "").replace(/^\//, "")), include };
+    });
+}
+
+export function isIgnored(rules: { regex: RegExp; include: boolean }[], path: string): boolean {
+  let ignored = false;
+  for (const rule of rules) if (rule.regex.test(path)) ignored = !rule.include;
+  return ignored;
 }
 
 /** Fichiers du contexte de build après application du .dockerignore. */
 function contextFiles(state: SimState, contextDir: string): FileSystem {
-  const ignore = (state.files[`${contextDir}/.dockerignore`] ?? "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("#"))
-    .map((pattern) => globToRegex(pattern.replace(/^\//, "")));
+  const rules = dockerignoreRules(state.files[`${contextDir}/.dockerignore`] ?? "");
   const files: FileSystem = {};
   for (const [path, content] of Object.entries(state.files)) {
     if (!path.startsWith(`${contextDir}/`)) continue;
     const relative = path.slice(contextDir.length + 1);
-    if (!ignore.some((regex) => regex.test(relative))) files[relative] = content;
+    if (!isIgnored(rules, relative)) files[relative] = content;
   }
   return files;
 }
@@ -183,8 +199,10 @@ export function buildImage(state: SimState, request: BuildRequest): BuildResult 
 
   const files = contextFiles(state, request.contextDir);
   const platforms = request.platforms?.length ? request.platforms : ["linux/amd64"];
-  const buildKey = hash(content + JSON.stringify(files) + JSON.stringify(args) + platforms.join(","));
-  const cached = !request.noCache && state.images.some((image) => image.buildKey === buildKey);
+  // Cache par couche : la clé de chaque instruction dépend de la précédente (et des fichiers copiés).
+  const stageKeys: Record<string, string> = {};
+  const newLayers: string[] = [];
+  let missed = 0;
 
   const image: Omit<Image, "id"> = {
     ...finalStage.base,
@@ -193,7 +211,6 @@ export function buildImage(state: SimState, request: BuildRequest): BuildResult 
     history: [...finalStage.base.history],
     base: parseImageRef(finalStage.baseRef).full,
     platforms,
-    buildKey,
     createdAt: Date.now(),
   };
   let size = image.size;
@@ -235,8 +252,15 @@ export function buildImage(state: SimState, request: BuildRequest): BuildResult 
     const counted = stage.steps.filter((step) => DURATIONS[step.keyword] !== undefined);
     const isFinal = stage === finalStage;
     let workdir = stage.base.workdir ?? "/";
-    for (const [stepIndex, step] of counted.entries()) {
-      const label = `${prefix}${multi ? `${stage.name} ` : ""}${stepIndex + 1}/${counted.length}`;
+    let key = hash(`${stage.baseRef}|${platforms.join(",")}`);
+    let position = 0;
+    for (const step of stage.steps) {
+      if (DURATIONS[step.keyword] === undefined) {
+        key = hash(`${key}|${step.raw}`);
+        continue;
+      }
+      const label = `${prefix}${multi ? `${stage.name} ` : ""}${++position}/${counted.length}`;
+      let inputs = "";
       if (step.keyword === "WORKDIR") workdir = step.args.startsWith("/") ? step.args : `${workdir.replace(/\/$/, "")}/${step.args}`;
       if (step.keyword === "COPY" || step.keyword === "ADD") {
         const parts = step.args.split(/\s+/);
@@ -246,6 +270,7 @@ export function buildImage(state: SimState, request: BuildRequest): BuildResult 
         if (fromStage && !stages.some((other) => other.name === fromStage)) {
           return failure(`ERROR: failed to solve: failed to parse stage name "${fromStage}": invalid reference format`);
         }
+        if (fromStage) inputs = stageKeys[fromStage] ?? "";
         for (const source of operands) {
           if (fromStage) continue;
           const regex = globToRegex(source);
@@ -256,6 +281,10 @@ export function buildImage(state: SimState, request: BuildRequest): BuildResult 
               `ERROR: failed to solve: failed to compute cache key: failed to calculate checksum of ref ${hash(source)}::${hash(step.raw)}: "/${source.replace(/^\.\//, "")}": not found`,
             );
           }
+          inputs += matches
+            .sort()
+            .map((file) => `${file}:${hash(files[file])}`)
+            .join(",");
           if (isFinal) {
             const targetDir = destination.startsWith("/")
               ? destination
@@ -270,14 +299,21 @@ export function buildImage(state: SimState, request: BuildRequest): BuildResult 
           size += 2.4 * MB;
         }
       }
-      const seconds = cached && step.keyword !== "FROM" ? 0 : DURATIONS[step.keyword];
+      key = hash(`${key}|${step.raw}|${inputs}`);
+      const cached = step.keyword !== "FROM" && !request.noCache && (state.layerCache.includes(key) || newLayers.includes(key));
+      if (!cached && step.keyword !== "FROM") {
+        missed++;
+        newLayers.push(key);
+        if (step.keyword === "RUN") state.buildCache += 45 * MB;
+      }
+      const seconds = cached ? 0 : DURATIONS[step.keyword];
       elapsed += seconds;
       if (step.keyword === "RUN" && isFinal) size += 38 * MB;
       const text =
         step.keyword === "FROM"
           ? `FROM docker.io/library/${parseImageRef(stage.baseRef).full}@sha256:${hash(stage.baseRef).padEnd(12, "0")}…`
           : step.raw;
-      lines.push(pad(` => ${cached && step.keyword !== "FROM" ? "CACHED " : ""}[${label}] ${text}`, seconds));
+      lines.push(pad(` => ${cached ? "CACHED " : ""}[${label}] ${text}`, seconds));
       if (step.keyword === "FROM" && !lines.some((line) => line.includes("load build context"))) {
         lines.push(
           pad(` => [${prefix}internal] load build context`, 0),
@@ -285,8 +321,13 @@ export function buildImage(state: SimState, request: BuildRequest): BuildResult 
         );
       }
     }
-    if (isFinal) image.workdir = workdir;
+    stageKeys[stage.name] = key;
+    if (isFinal) {
+      image.workdir = workdir;
+      image.buildKey = key;
+    }
   }
+  state.layerCache = [...new Set([...state.layerCache, ...newLayers])];
 
   // Métadonnées de l'image finale.
   for (const step of finalStage.steps) {
@@ -311,10 +352,8 @@ export function buildImage(state: SimState, request: BuildRequest): BuildResult 
     ...image.history,
   ];
   image.tags = request.tags.map((tagName) => parseImageRef(tagName).full);
-  if (!cached) state.buildCache += 45 * MB;
-
-  // Build identique en cache : Docker réutilise la même image et ajoute simplement les tags.
-  const reused = cached ? state.images.find((candidate) => candidate.buildKey === buildKey) : undefined;
+  // Build identique : Docker réutilise la même image et ajoute simplement les tags.
+  const reused = missed === 0 ? state.images.find((candidate) => candidate.buildKey === image.buildKey) : undefined;
   if (reused) {
     for (const ref of image.tags) {
       for (const other of state.images) other.tags = other.tags.filter((existing) => existing !== ref);

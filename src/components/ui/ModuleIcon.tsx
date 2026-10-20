@@ -4,6 +4,7 @@ import {
   Bug,
   Cloud,
   Database,
+  FileCode2,
   GitBranch,
   Hammer,
   Layers,
@@ -11,6 +12,7 @@ import {
   Package,
   Puzzle,
   Rocket,
+  Server,
   ShieldCheck,
   SlidersHorizontal,
   Users,
@@ -32,6 +34,8 @@ const icons = {
   users: Users,
   git: GitBranch,
   bug: Bug,
+  file: FileCode2,
+  server: Server,
 };
 
 export function ModuleIcon({ name, ...props }: { name: ModuleIconName } & LucideProps) {

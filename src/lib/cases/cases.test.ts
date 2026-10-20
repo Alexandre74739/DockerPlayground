@@ -1,21 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createEnvironment, execute, type ExecResult, type SimState } from "../simulator";
+import { createEnvironment, execute } from "../simulator";
 import { PROJECT_DIR } from "../simulator/state";
 import { cases } from "./catalog";
+import { answerAll } from "../test-utils";
 import { evaluate } from "./scoring";
-
-function answerPrompts(result: ExecResult): SimState {
-  let current = result;
-  while (current.prompt) {
-    const { prompt } = current;
-    if (prompt.blocking) return prompt.interrupt!(current.state).state;
-    current = prompt.respond(
-      current.state,
-      prompt.label.startsWith("Username") ? "alex" : prompt.label.startsWith("Password") ? "secret" : "y",
-    );
-  }
-  return current.state;
-}
 
 describe.each(cases)("cas pratique $id", (practice) => {
   it("totalise 100 points", () => {
@@ -31,7 +19,7 @@ describe.each(cases)("cas pratique $id", (practice) => {
     const initial = createEnvironment(practice.setup);
     let state = structuredClone(initial);
     for (const [path, content] of Object.entries(practice.solution.files ?? {})) state.files[`${PROJECT_DIR}/${path}`] = content;
-    for (const command of practice.solution.commands) state = answerPrompts(execute(state, command));
+    for (const command of practice.solution.commands) state = answerAll(execute(state, command)).state;
     const evaluation = evaluate(practice, state, initial, 0);
     const failing = practice.objectives
       .filter((objective) => !evaluation.results.find((result) => result.id === objective.id)!.passed)

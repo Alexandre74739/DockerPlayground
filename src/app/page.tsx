@@ -1,8 +1,7 @@
 import Image from "next/image";
 import { ContinueButton } from "@/components/ContinueButton";
 import { VideoCard } from "@/components/course/VideoCard";
-import { ModuleCard } from "@/components/ModuleCard";
-import { ResetProgressButton } from "@/components/ResetProgressButton";
+import { TrackList } from "@/components/TrackList";
 import { ButtonLink } from "@/components/ui/Button";
 import { ArrowRight } from "lucide-react";
 import { cases } from "@/lib/cases/catalog";
@@ -70,33 +69,24 @@ export default function HomePage() {
         ))}
       </section>
 
-      {tracks.map((track, trackIndex) => (
-        <section key={track.id}>
-          <SectionHeading
-            title={`Parcours ${trackIndex + 1} — ${track.title}`}
-            description={track.description}
-            action={trackIndex === 0 ? <ResetProgressButton /> : undefined}
-          />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {track.moduleIds.map((moduleId) => {
-              const mod = getModule(moduleId)!;
-              return (
-                <ModuleCard
-                  key={mod.id}
-                  position={modules.indexOf(mod) + 1}
-                  mod={{
-                    id: mod.id,
-                    title: mod.title,
-                    description: mod.description,
-                    icon: mod.icon,
-                    exerciseIds: mod.exercises.map((exercise) => exercise.id),
-                  }}
-                />
-              );
-            })}
-          </div>
-        </section>
-      ))}
+      <TrackList
+        tracks={tracks.map((track) => ({
+          id: track.id,
+          title: track.title,
+          description: track.description,
+          modules: track.moduleIds.map((moduleId) => {
+            const mod = getModule(moduleId)!;
+            return {
+              id: mod.id,
+              title: mod.title,
+              description: mod.description,
+              icon: mod.icon,
+              position: modules.indexOf(mod) + 1,
+              exerciseIds: mod.exercises.map((exercise) => exercise.id),
+            };
+          }),
+        }))}
+      />
 
       <section className="flex flex-wrap items-center justify-between gap-6 rounded-xl border border-ink-800 bg-ink-850 px-8 py-8">
         <div className="max-w-xl">
@@ -113,7 +103,15 @@ export default function HomePage() {
       </section>
 
       <section>
-        <SectionHeading title="Cours complets en vidéo" description="Pour tout revoir d'une traite." />
+        <SectionHeading
+          title="Cours complets en vidéo"
+          description="Pour tout revoir d'une traite."
+          action={
+            <ButtonLink href="/ressources" size="sm">
+              Voir plus de ressources <ArrowRight className="h-3.5 w-3.5" />
+            </ButtonLink>
+          }
+        />
         <div className="grid gap-4 md:grid-cols-3">
           {featuredVideos.map((video) => (
             <VideoCard key={video.youtubeId} video={video} />

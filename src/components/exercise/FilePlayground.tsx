@@ -7,6 +7,7 @@ import { CodeEditor } from "../CodeEditor";
 import { RichText } from "../RichText";
 import { Button } from "../ui/Button";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { CopyButton } from "../ui/CopyButton";
 import { Panel } from "./Panel";
 
 type FilePlaygroundProps = {
@@ -91,9 +92,12 @@ export function FilePlayground({ exercise, onComplete }: FilePlaygroundProps) {
         </div>
 
         {showSolution && (
-          <pre className="overflow-x-auto rounded-xl border border-ink-800 bg-ink-950 p-4 font-mono text-xs leading-relaxed text-ink-200">
-            {exercise.solution}
-          </pre>
+          <div className="relative">
+            <CopyButton text={exercise.solution} label="Copier le fichier" className="absolute right-2 top-2" />
+            <pre className="overflow-x-auto rounded-xl border border-ink-800 bg-ink-950 p-4 pr-10 font-mono text-xs leading-relaxed text-ink-200">
+              {exercise.solution}
+            </pre>
+          </div>
         )}
       </aside>
 

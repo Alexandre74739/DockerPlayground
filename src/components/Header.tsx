@@ -14,6 +14,7 @@ export function Header() {
         <nav className="flex gap-1">
           <NavLink href="/">Parcours</NavLink>
           <NavLink href="/cas-pratiques">Cas pratiques</NavLink>
+          <NavLink href="/ressources">Ressources</NavLink>
           <NavLink href="/aide-memoire">Aide-mémoire</NavLink>
         </nav>
         <div className="ml-auto hidden md:block">

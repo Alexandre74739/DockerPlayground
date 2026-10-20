@@ -237,6 +237,60 @@ export const configuration: Module = {
         },
       ],
     },
+    {
+      id: "fichier-env",
+      kind: "command",
+      title: "Préparer son fichier .env",
+      intro:
+        "Dans un projet d'équipe, le dépôt contient un `.env.example` (versionné, valeurs factices) ; chacun le copie en `.env` (ignoré par Git) et l'adapte. Compose lit ensuite ce `.env` automatiquement.",
+      setup: {
+        files: {
+          ".env.example": "DB_PASSWORD=changeme\nAPP_PORT=8080\n",
+          "compose.yaml":
+            'services:\n  web:\n    image: nginx:alpine\n    ports:\n      - "${APP_PORT}:80"\n  db:\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: ${DB_PASSWORD}\n',
+        },
+        images: ["nginx:alpine", "postgres:16"],
+      },
+      steps: [
+        {
+          instruction: "Affiche le modèle .env.example.",
+          rule: { prefixes: [["cat", ".env.example"]] },
+          solution: "cat .env.example",
+          hint: "cat .env.example",
+        },
+        {
+          instruction: "Copie-le en .env.",
+          rule: { prefixes: [["cp", ".env.example", ".env"]] },
+          solution: "cp .env.example .env",
+          hint: "cp <source> <destination>",
+        },
+        {
+          instruction:
+            "Remplace le mot de passe : ajoute la ligne DB_PASSWORD=s3cret-local à la fin de .env (la dernière valeur l'emporte).",
+          rule: { prefixes: [["echo", "DB_PASSWORD=s3cret-local"]] },
+          solution: 'echo "DB_PASSWORD=s3cret-local" >> .env',
+          hint: 'echo "…" >> .env',
+        },
+        {
+          instruction: "Vérifie les valeurs résolues par Compose.",
+          rule: { prefixes: [["docker", "compose", "config"]] },
+          solution: "docker compose config",
+          hint: "docker compose config",
+        },
+        {
+          instruction: "Démarre la stack en arrière-plan.",
+          rule: { prefixes: [["docker", "compose", "up"]], flags: [{ names: ["-d", "--detach"] }] },
+          solution: "docker compose up -d",
+          hint: "docker compose up -d",
+        },
+        {
+          instruction: "Vérifie que le mot de passe reçu par la base est le bon.",
+          rule: { prefixes: [["docker", "compose", "exec", "db", "printenv", "POSTGRES_PASSWORD"]] },
+          solution: "docker compose exec db printenv POSTGRES_PASSWORD",
+          hint: "docker compose exec <service> printenv <VARIABLE>",
+        },
+      ],
+    },
   ],
   quiz: [
     {

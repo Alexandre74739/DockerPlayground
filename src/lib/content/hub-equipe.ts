@@ -269,6 +269,53 @@ jobs:
         },
       ],
     },
+    {
+      id: "depot-prive",
+      kind: "command",
+      title: "Utiliser un dépôt privé",
+      intro:
+        "L'outil interne `acme/outil-interne` est dans un dépôt **privé** de l'organisation. Sans être connecté avec un compte membre, Docker Hub répond comme si le dépôt n'existait pas.",
+      setup: { orgs: ["acme"], hub: { "acme/outil-interne": { private: true, tags: ["1.0"] } } },
+      steps: [
+        {
+          instruction: "Tente de télécharger acme/outil-interne:1.0 sans être connecté : la commande doit échouer.",
+          rule: {
+            prefixes: [
+              ["docker", "pull"],
+              ["docker", "image", "pull"],
+            ],
+            args: ["acme/outil-interne:1.0"],
+          },
+          solution: "docker pull acme/outil-interne:1.0",
+          hint: "docker pull <image>",
+          expect: "failure",
+        },
+        {
+          instruction: "Connecte-toi à Docker Hub (identifiant alex).",
+          rule: { prefixes: [["docker", "login"]] },
+          solution: "docker login",
+          hint: "docker login",
+        },
+        {
+          instruction: "Télécharge à nouveau l'image : ton compte est membre de l'organisation acme.",
+          rule: {
+            prefixes: [
+              ["docker", "pull"],
+              ["docker", "image", "pull"],
+            ],
+            args: ["acme/outil-interne:1.0"],
+          },
+          solution: "docker pull acme/outil-interne:1.0",
+          hint: "Même commande.",
+        },
+        {
+          instruction: "Sur un poste partagé, on se déconnecte toujours après usage.",
+          rule: { prefixes: [["docker", "logout"]] },
+          solution: "docker logout",
+          hint: "docker logout",
+        },
+      ],
+    },
   ],
   quiz: [
     {

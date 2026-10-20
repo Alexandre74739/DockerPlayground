@@ -1,5 +1,6 @@
 import { formatHelp, parseArgs } from "./args";
 import { type CommandDef, fail, ok, type Outcome } from "./command";
+import { homeOf, remoteEngineError, withEngine } from "./machines";
 import type { ComposeOptions } from "./compose-file";
 import { buildCommand } from "./commands/build";
 import { composeCommands } from "./commands/compose";
@@ -108,10 +109,36 @@ function groupHelp(group: string): string {
 }
 
 /** Exécute `docker <args>` sur l'état fourni (modifié en place). */
-export function runDocker(state: SimState, args: string[]): Outcome {
+export function runDocker(state: SimState, rawArgs: string[]): Outcome {
+  // Options globales : -H/--host et -c/--context désignent le moteur à piloter.
+  let args = rawArgs;
+  let endpoint: string | undefined;
+  let contextName = state.context;
+  while (["-H", "--host", "-c", "--context"].includes(args[0]) && args[1]) {
+    if (args[0] === "-H" || args[0] === "--host") endpoint = args[1];
+    else contextName = args[1];
+    args = args.slice(2);
+  }
+  if (!endpoint && !state.contexts[contextName]) {
+    return fail(
+      `context "${contextName}": context not found: open ${homeOf(state.user)}/.docker/contexts/meta/${contextName}/meta.json: no such file or directory`,
+    );
+  }
+  endpoint ??= state.contexts[contextName].endpoint;
+  if (endpoint.startsWith("ssh://") && args[0] !== "context" && args[0] !== "login" && args[0] !== "logout") {
+    const target = remoteEngineError(state, endpoint);
+    if ("error" in target) return fail(target.error);
+    const outcome = withEngine(state, target.id, () => dispatch(state, args));
+    if (state.shell && !state.shell.machine) state.shell.machine = target.id;
+    return outcome;
+  }
+  return dispatch(state, args);
+}
+
+function dispatch(state: SimState, args: string[]): Outcome {
   if (args.length === 0 || (args.length === 1 && ["--help", "-h", "help"].includes(args[0]))) return ok(TOP_HELP);
   if (args[0] === "--version" || args[0] === "-v") return ok(versionShort);
-  if (args[0] === "help") return runDocker(state, [...args.slice(1), "--help"]);
+  if (args[0] === "help") return dispatch(state, [...args.slice(1), "--help"]);
   if (args[0] === "builder" && args[1] === "build") return runCommand(state, buildCommand, "builder build", args.slice(2));
   if (args[0] === "compose") return runCompose(state, args.slice(1));
 

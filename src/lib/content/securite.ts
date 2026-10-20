@@ -242,6 +242,48 @@ CMD ["node", "server.js"]
         },
       ],
     },
+    {
+      id: "utilisateur-dedie",
+      kind: "file",
+      title: "Créer un utilisateur dédié",
+      intro:
+        "Toutes les images ne fournissent pas d'utilisateur non root comme l'image node. Pour une image Python, on crée un utilisateur système, on lui donne le dossier de l'application, puis on bascule dessus avec `USER`.",
+      fileName: "Dockerfile",
+      instruction:
+        "Complète ce Dockerfile : crée un groupe et un utilisateur système app (addgroup --system app && adduser --system --ingroup app app), copie le code avec --chown=app:app, puis passe sur l'utilisateur app avant CMD. Épingle aussi l'image en python:3.12.7-slim.",
+      starter: `FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8000
+CMD ["python", "app.py"]
+`,
+      checks: [
+        { pattern: /^FROM\s+python:3\.12\.7-slim\s*$/m, label: "Version épinglée : python:3.12.7-slim" },
+        {
+          pattern: /^RUN\s+addgroup\s+--system\s+app\s*&&\s*adduser\s+--system\s+--ingroup\s+app\s+app\s*$/m,
+          label: "Création du groupe et de l'utilisateur app",
+        },
+        { pattern: /^COPY\s+--chown=app:app\s+\.\s+\.\s*$/m, label: "COPY --chown=app:app . ." },
+        { pattern: /^USER\s+app\s*$/m, label: "USER app" },
+        { pattern: /^USER\s+app[\s\S]*^CMD/m, label: "USER placé avant CMD" },
+      ],
+      solution: `FROM python:3.12.7-slim
+WORKDIR /app
+
+RUN addgroup --system app && adduser --system --ingroup app app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY --chown=app:app . .
+USER app
+
+EXPOSE 8000
+CMD ["python", "app.py"]
+`,
+    },
   ],
   quiz: [
     {
