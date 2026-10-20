@@ -21,15 +21,16 @@ function moduleDone(progress: Progress, mod: TrackModule): boolean {
   );
 }
 
-/** Parcours de l'accueil, filtrables selon leur avancement. */
+/** Parcours de l'accueil : le filtre porte sur les modules de chaque parcours. */
 export function TrackList({ tracks }: { tracks: TrackSummary[] }) {
   const progress = useProgress();
   const [filter, setFilter] = useState<Filter>("all");
-  const isDone = (track: TrackSummary) => track.modules.every((mod) => moduleDone(progress, mod));
-  const counts = { all: tracks.length, todo: tracks.filter((track) => !isDone(track)).length, done: tracks.filter(isDone).length };
-  const visible = tracks.filter((track) => filter === "all" || (filter === "done") === isDone(track));
+  const isDone = (mod: TrackModule) => moduleDone(progress, mod);
+  const matches = (mod: TrackModule) => filter === "all" || (filter === "done") === isDone(mod);
+  const allModules = tracks.flatMap((track) => track.modules);
+  const counts = { all: allModules.length, todo: allModules.filter((mod) => !isDone(mod)).length, done: allModules.filter(isDone).length };
   const options: { id: Filter; label: string }[] = [
-    { id: "all", label: "Tous les parcours" },
+    { id: "all", label: "Tous les modules" },
     { id: "todo", label: "À terminer" },
     { id: "done", label: "Terminés" },
   ];
@@ -40,7 +41,7 @@ export function TrackList({ tracks }: { tracks: TrackSummary[] }) {
         <div
           className="flex flex-wrap gap-1 rounded-lg border border-ink-800 bg-ink-850 p-1"
           role="radiogroup"
-          aria-label="Filtrer les parcours"
+          aria-label="Filtrer les modules"
         >
           {options.map((option) => (
             <button
@@ -59,9 +60,9 @@ export function TrackList({ tracks }: { tracks: TrackSummary[] }) {
         <ResetProgressButton />
       </div>
 
-      {visible.map((track) => {
-        const index = tracks.indexOf(track);
-        const done = isDone(track);
+      {tracks.map((track, index) => {
+        const done = track.modules.every(isDone);
+        const shown = track.modules.filter(matches);
         return (
           <section key={track.id}>
             <div className="mb-6">
@@ -73,22 +74,22 @@ export function TrackList({ tracks }: { tracks: TrackSummary[] }) {
               </h2>
               <p className="mt-1 text-sm text-ink-400">{track.description}</p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {track.modules.map((mod) => (
-                <ModuleCard key={mod.id} position={mod.position} mod={mod} />
-              ))}
-            </div>
+            {shown.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {shown.map((mod) => (
+                  <ModuleCard key={mod.id} position={mod.position} mod={mod} />
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-xl border border-dashed border-ink-700 px-5 py-6 text-sm text-ink-400">
+                {filter === "done"
+                  ? "Aucun module terminé dans ce parcours pour l'instant : termine ses exercices et son quiz."
+                  : "Tous les modules de ce parcours sont terminés."}
+              </p>
+            )}
           </section>
         );
       })}
-
-      {visible.length === 0 && (
-        <p className="rounded-xl border border-dashed border-ink-700 py-10 text-center text-sm text-ink-400">
-          {filter === "done"
-            ? "Aucun parcours terminé pour l'instant : termine les exercices et le quiz de chaque module."
-            : "Bravo, tous les parcours sont terminés !"}
-        </p>
-      )}
     </div>
   );
 }
