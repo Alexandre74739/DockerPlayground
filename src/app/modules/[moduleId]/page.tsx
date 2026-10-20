@@ -6,7 +6,7 @@ import { Markdown } from "@/components/course/Markdown";
 import { ModulePlan } from "@/components/course/ModulePlan";
 import { ResourceList } from "@/components/course/ResourceList";
 import { VideoCard } from "@/components/course/VideoCard";
-import { getModule, modules } from "@/lib/content";
+import { getModule, modules, trackOf } from "@/lib/content";
 import { getLesson, lessonOutline, readingMinutes } from "@/lib/content/lessons";
 
 export function generateStaticParams() {
@@ -32,6 +32,7 @@ export default async function ModulePage({ params }: PageProps<"/modules/[module
   if (!mod) notFound();
 
   const lesson = getLesson(mod.id);
+  const track = trackOf(mod.id);
   const index = modules.indexOf(mod);
   const previous = modules[index - 1];
   const next = modules[index + 1];
@@ -48,7 +49,10 @@ export default async function ModulePage({ params }: PageProps<"/modules/[module
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-ink-500 transition-colors hover:text-ink-100">
           <ArrowLeft className="h-4 w-4" /> Parcours
         </Link>
-        <p className="mt-8 text-sm font-medium text-neon-400">Module {index + 1}</p>
+        <p className="mt-8 text-sm font-medium text-neon-400">
+          Module {index + 1}
+          {track && <span className="text-ink-500"> · {track.title}</span>}
+        </p>
         <h1 className="mt-2 text-4xl font-semibold tracking-tight text-ink-100">{mod.title}</h1>
         <p className="mt-3 text-[17px] leading-relaxed text-ink-400">{mod.description}</p>
         <p className="mt-5 text-sm text-ink-500">{meta.join("  ·  ")}</p>

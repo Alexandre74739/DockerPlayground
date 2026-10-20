@@ -2,7 +2,7 @@ import { has, value, values } from "../args";
 import { ask, type CommandDef, fail, join, ok, type Outcome } from "../command";
 import { truncate, table } from "../format";
 import { catalog } from "../catalog";
-import { findImage, parseImageRef } from "../state";
+import { canPush, findImage, parseImageRef, publish } from "../state";
 import type { SimState } from "../types";
 import { layerIds } from "./images";
 
@@ -30,7 +30,7 @@ const search: CommandDef = {
       rows.push([name, entry.description, entry.stars, true]);
       rows.push([`bitnami/${name}`, `Bitnami container image for ${name}`, Math.round(entry.stars / 40), false]);
     }
-    for (const repo of Object.keys(state.hub)) if (repo.includes(term)) rows.push([repo, "", 0, false]);
+    for (const [repo, entry] of Object.entries(state.hub)) if (repo.includes(term) && !entry.private) rows.push([repo, "", 0, false]);
     const filtered = rows.filter((row) => !officialOnly || row[3]).slice(0, Number(value(parsed, "--limit") ?? 25));
     return ok(
       table(
@@ -134,16 +134,15 @@ const push: CommandDef = {
     const fullRepo = repo.includes("/") ? repo : `library/${repo}`;
     const layers = layerIds(repo, 4);
     const header = `The push refers to repository [docker.io/${fullRepo}]`;
-    const namespace = repo.split("/")[0];
-    if (!state.auth || !repo.includes("/") || namespace !== state.auth) {
+    if (!canPush(state, repo)) {
       return fail(join(header, ...layers.map((layer) => `${layer}: Preparing`), "denied: requested access to the resource is denied"));
     }
     const lines = [header];
     for (const current of tags) {
-      const known = (state.hub[repo] ?? []).length > 0;
+      const known = Object.keys(state.hub[repo]?.tags ?? {}).length > 0;
       lines.push(...layers.map((layer) => `${layer}: ${known ? "Layer already exists" : "Pushed"}`));
       lines.push(`${current}: digest: sha256:${layerIds(`${repo}:${current}`, 8).join("")} size: 1782`);
-      state.hub[repo] = [...new Set([...(state.hub[repo] ?? []), current])];
+      publish(state, repo, current, findImage(state, `${repo}:${current}`)!);
     }
     return ok(lines.join("\n"));
   },

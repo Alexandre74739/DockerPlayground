@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   complete,
-  createState,
+  createEnvironment,
   execute,
   type ExecResult,
   type Prompt,
@@ -25,8 +25,8 @@ export type CommandEvent = { line: string; result: ExecResult };
  * Relie le simulateur Docker au terminal : état, historique d'affichage et
  * questions interactives (mot de passe, confirmation, Ctrl+C).
  */
-export function useSimulator(setup: SimulatorSetup | undefined, onFinished: (event: CommandEvent) => void) {
-  const [state, setState] = useState<SimState>(() => createState(setup));
+export function useSimulator(setup: SimulatorSetup | undefined, onFinished: (event: CommandEvent) => void, initialState?: SimState) {
+  const [state, setState] = useState<SimState>(() => (initialState ? structuredClone(initialState) : createEnvironment(setup)));
   const [lines, setLines] = useState<TerminalLine[]>(WELCOME);
   const [pending, setPending] = useState<{ prompt: Prompt; line: string } | null>(null);
 
@@ -80,12 +80,18 @@ export function useSimulator(setup: SimulatorSetup | undefined, onFinished: (eve
   }
 
   function reset() {
-    setState(createState(setup));
+    setState(createEnvironment(setup));
     setLines(WELCOME);
     setPending(null);
   }
 
+  function writeFile(path: string, content: string) {
+    setState((current) => ({ ...current, files: { ...current.files, [path]: content } }));
+  }
+
   return {
+    state,
+    writeFile,
     lines,
     activePrompt,
     title: state.shell

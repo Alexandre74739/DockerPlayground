@@ -109,14 +109,6 @@ volumes:
       kind: "command",
       setup: {
         files: { ...PROJECT_FILES, "compose.yaml": COMPOSE_FILE },
-        compose: {
-          fileName: "compose.yaml",
-          services: [
-            { name: "web", build: true, ports: ["3000:3000"], dependsOn: ["db"] },
-            { name: "db", image: "postgres:16", env: ["POSTGRES_PASSWORD=secret"], volumes: ["pgdata:/var/lib/postgresql/data"] },
-          ],
-          volumes: ["pgdata"],
-        },
       },
       title: "Piloter une stack Compose",
       intro:

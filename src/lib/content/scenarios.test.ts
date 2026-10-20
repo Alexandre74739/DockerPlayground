@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createState, execute, type ExecResult, type SimState } from "../simulator";
+import { createEnvironment, execute, type ExecResult, type SimState } from "../simulator";
 import { validatesStep } from "../step-validation";
 import { modules } from ".";
 
@@ -9,7 +9,13 @@ function answer(state: SimState, result: ExecResult): ExecResult {
   while (current.prompt) {
     const { prompt } = current;
     if (prompt.blocking) return { ...current, prompt: undefined, state: prompt.interrupt!(current.state).state };
-    const reply = prompt.label.startsWith("Username") ? "alex" : prompt.label.startsWith("Password") ? "secret" : "y";
+    const reply = prompt.label.startsWith("Username")
+      ? "alex"
+      : prompt.label.startsWith("Password")
+        ? "secret"
+        : prompt.label.startsWith("?")
+          ? ""
+          : "y";
     current = prompt.respond(current.state, reply);
   }
   return current;
@@ -26,7 +32,7 @@ describe.each(
 )("scénario $id", ({ exercise }) => {
   it("les solutions valident toutes les étapes", () => {
     if (exercise.kind !== "command") return;
-    let state = createState(exercise.setup);
+    let state = createEnvironment(exercise.setup);
     for (const step of exercise.steps) {
       if (state.shell && !["sh", "bash"].includes(step.solution)) state = execute(state, "exit").state;
       const result = execute(state, step.solution);

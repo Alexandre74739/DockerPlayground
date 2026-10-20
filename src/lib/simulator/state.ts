@@ -1,6 +1,7 @@
 import { catalog, PUBLISHED_AGO } from "./catalog";
 import { DAY, HOUR, MB, randomHex } from "./format";
-import type { ComposeProject, Container, FileSystem, Image, ImageKind, Network, SimState } from "./types";
+import { buildContainer } from "./container";
+import type { AppBehavior, Container, FileSystem, Image, ImageKind, Network, SimState } from "./types";
 
 export const HOME = "/home/alex";
 export const PROJECT_DIR = `${HOME}/projet`;
@@ -54,29 +55,60 @@ export function remoteImage(state: SimState, input: string): Omit<Image, "id"> |
       workdir: entry.workdir ?? "/",
       exposed: entry.exposed ?? [],
       env: entry.env ?? [],
+      slim: tag.includes("slim"),
+      base: full,
+      platforms: ["linux/amd64", "linux/arm64"],
       fs: { ...entry.fs },
       history: entry.layers.map((createdBy, index) => ({ createdBy, size: index === entry.layers.length - 1 ? entry.size : 0 })),
     };
   }
-  const published = state.hub[repo];
-  if (published?.includes(tag)) {
-    const local = findImage(state, full);
-    if (local) return { ...local, tags: [full] };
+  const published = state.hub[repo]?.tags[tag];
+  if (published && canPull(state, repo)) {
+    if (published.image) return { ...structuredClone(published.image), tags: [full] };
     return {
       tags: [full],
       size: 162 * MB,
-      createdAt: Date.now() - DAY,
+      createdAt: published.pushedAt,
       kind: "app",
       alpine: true,
+      base: "node:22-alpine",
       cmd: ["node", "server.js"],
       workdir: "/app",
       exposed: ["3000/tcp"],
       env: [],
+      user: "node",
+      platforms: published.platforms,
       fs: {},
       history: [],
     };
   }
   return undefined;
+}
+
+/** Dépôts privés : visibles seulement par leur propriétaire ou les membres de l'organisation. */
+export function canPull(state: SimState, repo: string): boolean {
+  const entry = state.hub[repo];
+  if (!entry?.private) return true;
+  const namespace = repo.split("/")[0];
+  return state.auth !== null && (state.auth === namespace || state.orgs.includes(namespace));
+}
+
+/** Enregistre une image sur le Hub simulé (docker push, buildx --push). */
+export function publish(state: SimState, repo: string, tag: string, image: Image) {
+  const snapshot: Partial<Image> = structuredClone(image);
+  delete snapshot.id;
+  delete snapshot.tags;
+  state.hub[repo] ??= { private: false, tags: {} };
+  state.hub[repo].tags[tag] = {
+    platforms: image.platforms ?? ["linux/amd64"],
+    pushedAt: Date.now(),
+    image: snapshot as Omit<Image, "id" | "tags">,
+  };
+}
+
+export function canPush(state: SimState, repo: string): boolean {
+  const namespace = repo.split("/")[0];
+  return state.auth !== null && repo.includes("/") && (state.auth === namespace || state.orgs.includes(namespace));
 }
 
 /** Tags plausibles pour une image officielle (latest, alpine, 22-alpine, 1.27.2…). */
@@ -151,12 +183,17 @@ export type ContainerSetup = {
   status?: "running" | "exited";
   ports?: string[];
   env?: string[];
+  networks?: string[];
+  /** Volumes montés, syntaxe -v (ex: "pgdata:/var/lib/postgresql/data"). */
+  volumes?: string[];
+  restart?: string;
   /** Fichiers supplémentaires présents dans le conteneur. */
   fs?: FileSystem;
 };
 
 export type CustomImageSetup = {
   ref: string;
+  user?: string;
   kind?: ImageKind;
   base?: string;
   cmd?: string[];
@@ -179,10 +216,18 @@ export type SimulatorSetup = {
   dirs?: string[];
   auth?: string;
   buildCache?: number;
-  compose?: ComposeProject;
   /** Contexte Docker actif (desktop-linux par défaut). */
   context?: string;
+  /** Organisations Docker Hub de l'utilisateur. */
+  orgs?: string[];
+  /** Dépôts déjà présents sur Docker Hub. */
+  hub?: Record<string, { private?: boolean; tags: string[] }>;
+  app?: Partial<AppBehavior>;
+  /** Commandes exécutées pour préparer l'environnement (ex: "docker compose up -d"). */
+  commands?: string[];
 };
+
+export const DEFAULT_APP: AppBehavior = { port: 3000, response: "Hello from Docker!", requiredEnv: [], urlEnv: [] };
 
 const BUILTIN_NETWORKS: Network[] = [
   { id: randomHex(64), name: "bridge", driver: "bridge", createdAt: Date.now() - 30 * DAY, builtin: true },
@@ -203,10 +248,19 @@ export function createState(setup: SimulatorSetup = {}): SimState {
     networks: structuredClone(BUILTIN_NETWORKS),
     shell: null,
     auth: setup.auth ?? null,
+    orgs: setup.orgs ?? [],
     context: setup.context ?? "desktop-linux",
     buildCache: setup.buildCache ?? 0,
-    hub: {},
-    compose: setup.compose ?? null,
+    hub: Object.fromEntries(
+      Object.entries(setup.hub ?? {}).map(([repo, entry]) => [
+        repo,
+        {
+          private: entry.private ?? false,
+          tags: Object.fromEntries(entry.tags.map((tag) => [tag, { platforms: ["linux/amd64"], pushedAt: Date.now() - 7 * DAY }])),
+        },
+      ]),
+    ),
+    app: { ...DEFAULT_APP, ...setup.app },
   };
 
   for (const [path, content] of Object.entries(setup.files ?? {})) state.files[resolvePath(PROJECT_DIR, path)] = content;
@@ -223,6 +277,9 @@ export function createState(setup: SimulatorSetup = {}): SimState {
       createdAt: Date.now() - 2 * HOUR,
       kind: custom.kind ?? "app",
       alpine: base?.alpine ?? true,
+      slim: base?.slim,
+      base: base ? parseImageRef(custom.base!).full : "node:22-alpine",
+      user: custom.user,
       cmd: custom.cmd ?? ["node", "server.js"],
       workdir: custom.workdir ?? "/app",
       exposed: custom.exposed ?? ["3000/tcp"],
@@ -245,29 +302,30 @@ export function createState(setup: SimulatorSetup = {}): SimState {
       if (!remote) throw new Error(`Image inconnue dans la configuration : ${spec.image}`);
       image = addImage(state, remote);
     }
-    const createdAt = Date.now() - 2 * HOUR;
-    state.containers.push({
-      id: randomHex(64),
-      name: spec.name,
-      image: spec.image,
-      imageId: image.id,
-      command: image.cmd,
-      status: spec.status ?? "running",
-      exitCode: 0,
-      createdAt,
-      changedAt: spec.status === "exited" ? createdAt + 1000 : createdAt,
-      ports: (spec.ports ?? []).map((port) => {
-        const [host, container] = port.split(":");
-        return { host, container };
-      }),
-      env: [...image.env, ...(spec.env ?? [])],
-      mounts: [],
-      networks: ["bridge"],
-      autoRemove: false,
-      fs: { ...image.fs, ...spec.fs },
-      kind: image.kind,
-      alpine: image.alpine,
-    });
+    const container = buildContainer(
+      {
+        name: spec.name,
+        imageInput: spec.image,
+        image,
+        env: spec.env,
+        restart: spec.restart,
+        ports: (spec.ports ?? []).map((port) => {
+          const [host, target] = port.split(":");
+          return { host, container: target };
+        }),
+        networks: spec.networks,
+        mounts: (spec.volumes ?? []).map((volume) => {
+          const [source, target] = volume.split(":");
+          const bind = /^[./~]/.test(source);
+          return { type: bind ? "bind" : "volume", source: bind ? resolvePath(PROJECT_DIR, source) : source, target, readOnly: false };
+        }),
+      },
+      Date.now() - 2 * HOUR,
+    );
+    container.status = spec.status ?? "running";
+    if (container.status === "exited") container.changedAt += 1000;
+    container.fs = { ...container.fs, ...spec.fs };
+    state.containers.push(container);
   }
   return state;
 }

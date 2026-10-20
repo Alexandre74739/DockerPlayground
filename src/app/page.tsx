@@ -4,7 +4,9 @@ import { VideoCard } from "@/components/course/VideoCard";
 import { ModuleCard } from "@/components/ModuleCard";
 import { ResetProgressButton } from "@/components/ResetProgressButton";
 import { ButtonLink } from "@/components/ui/Button";
-import { featuredVideos, modules } from "@/lib/content";
+import { ArrowRight } from "lucide-react";
+import { cases } from "@/lib/cases/catalog";
+import { featuredVideos, getModule, modules, tracks } from "@/lib/content";
 
 const STEPS = [
   { title: "Comprendre", text: "Un cours court par module, complété par des vidéos." },
@@ -34,8 +36,8 @@ export default function HomePage() {
             Maîtrise la ligne de commande Docker.
           </h1>
           <p className="mt-5 max-w-lg text-[17px] leading-relaxed text-ink-400">
-            Des cours concis, un terminal simulé qui réagit comme le vrai et des exercices guidés, de Docker Desktop jusqu&apos;à Docker
-            Hub.
+            Des cours concis, un terminal simulé qui réagit comme le vrai, des exercices guidés et des cas pratiques notés : de Docker
+            Desktop à la mise en production en équipe.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <ContinueButton />
@@ -44,7 +46,15 @@ export default function HomePage() {
         </div>
         <div className="hidden justify-center lg:flex">
           {/* Logo officiel Docker (kit presse docker.com), version blanche pour fond sombre. */}
-          <Image src="/brand/docker-logo-white.svg" alt="Docker" width={1250} height={268} priority unoptimized className="w-full max-w-md" />
+          <Image
+            src="/brand/docker-logo-white.svg"
+            alt="Docker"
+            width={1250}
+            height={268}
+            priority
+            unoptimized
+            className="w-full max-w-md"
+          />
         </div>
       </section>
 
@@ -60,27 +70,46 @@ export default function HomePage() {
         ))}
       </section>
 
-      <section>
-        <SectionHeading
-          title="Parcours"
-          description="Huit modules, du premier conteneur à la publication sur Docker Hub."
-          action={<ResetProgressButton />}
-        />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {modules.map((mod, index) => (
-            <ModuleCard
-              key={mod.id}
-              position={index + 1}
-              mod={{
-                id: mod.id,
-                title: mod.title,
-                description: mod.description,
-                icon: mod.icon,
-                exerciseIds: mod.exercises.map((exercise) => exercise.id),
-              }}
-            />
-          ))}
+      {tracks.map((track, trackIndex) => (
+        <section key={track.id}>
+          <SectionHeading
+            title={`Parcours ${trackIndex + 1} — ${track.title}`}
+            description={track.description}
+            action={trackIndex === 0 ? <ResetProgressButton /> : undefined}
+          />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {track.moduleIds.map((moduleId) => {
+              const mod = getModule(moduleId)!;
+              return (
+                <ModuleCard
+                  key={mod.id}
+                  position={modules.indexOf(mod) + 1}
+                  mod={{
+                    id: mod.id,
+                    title: mod.title,
+                    description: mod.description,
+                    icon: mod.icon,
+                    exerciseIds: mod.exercises.map((exercise) => exercise.id),
+                  }}
+                />
+              );
+            })}
+          </div>
+        </section>
+      ))}
+
+      <section className="flex flex-wrap items-center justify-between gap-6 rounded-xl border border-ink-800 bg-ink-850 px-8 py-8">
+        <div className="max-w-xl">
+          <p className="text-sm font-medium text-neon-400">Cas pratiques</p>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight text-ink-100">Entraîne-toi en conditions réelles</h2>
+          <p className="mt-2 text-sm leading-relaxed text-ink-400">
+            {cases.length} missions tirées du quotidien d&apos;une équipe — dockeriser un service, publier une release, résoudre un incident
+            — notées sur 100 et chronométrées.
+          </p>
         </div>
+        <ButtonLink href="/cas-pratiques" variant="primary">
+          Voir les cas pratiques <ArrowRight className="h-4 w-4" />
+        </ButtonLink>
       </section>
 
       <section>

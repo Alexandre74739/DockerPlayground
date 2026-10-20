@@ -8,12 +8,14 @@ import {
   displayCommand,
   inspectContainer,
   launchPlan,
+  memoryBytes,
   portsText,
   setExited,
   setRunning,
   statusText,
 } from "../runtime";
 import { hasShell, openSessionBanner, runInContainer } from "../shell";
+import { parseEnvFile } from "../compose-file";
 import { findContainer, findImage, isValidReference, resolvePath } from "../state";
 import type { Container, Mount, PortBinding, ShellName, SimState } from "../types";
 import { inspectImage, pullImage } from "./images";
@@ -68,7 +70,7 @@ export function startContainer(
   container: Container,
   mode: { detach: boolean; interactive: boolean; prefix?: string },
 ): Outcome {
-  const plan = launchPlan(container, mode.interactive, (argv) => runInContainer(state, container, argv));
+  const plan = launchPlan(state, container, mode.interactive, (target, argv) => runInContainer(state, target, argv));
   const prefix = mode.prefix ? `${mode.prefix}\n` : "";
   const id = mode.detach ? container.id : "";
 
@@ -89,10 +91,10 @@ export function startContainer(
       setRunning(container);
       if (mode.detach) return ok(prefix + id);
       return {
-        out: prefix + containerLogs(container),
+        out: prefix + containerLogs(state, container),
         prompt: foreground((next) => {
           const current = next.containers.find((other) => other.id === container.id);
-          if (current) setExited(next, current, 0);
+          if (current) setExited(next, current, 0, { manual: true });
           return { out: "", code: 130 };
         }),
       };
@@ -128,9 +130,15 @@ const run: CommandDef = {
       { names: ["--name"], value: "string", description: "Assign a name to the container" },
       { names: ["--network", "--net"], value: "network", description: "Connect a container to a network" },
       { names: ["-p", "--publish"], value: "list", description: "Publish a container's port(s) to the host" },
+      { names: ["--env-file"], value: "list", description: "Read in a file of environment variables" },
+      { names: ["--health-cmd"], value: "string", description: "Command to run to check health" },
+      { names: ["-m", "--memory"], value: "bytes", description: "Memory limit" },
+      { names: ["--cpus"], value: "decimal", description: "Number of CPUs" },
+      { names: ["--read-only"], description: "Mount the container's root filesystem as read only" },
       { names: ["--restart"], value: "string", description: 'Restart policy to apply when a container exits (default "no")' },
       { names: ["--rm"], description: "Automatically remove the container and its associated anonymous volumes when it exits" },
       { names: ["-t", "--tty"], description: "Allocate a pseudo-TTY" },
+      { names: ["-u", "--user"], value: "string", description: "Username or UID (format: <name|uid>[:<group|gid>])" },
       { names: ["-v", "--volume"], value: "list", description: "Bind mount a volume" },
       { names: ["-w", "--workdir"], value: "string", description: "Working directory inside the container" },
     ],
@@ -157,6 +165,18 @@ const run: CommandDef = {
     if (typeof ports === "string") return fail(ports, 125);
     const mounts = parseMounts(state, values(parsed, "--volume"));
     if (typeof mounts === "string") return fail(mounts, 125);
+    const restart = value(parsed, "--restart") ?? "no";
+    if (!/^(no|always|unless-stopped|on-failure(:\d+)?)$/.test(restart))
+      return fail(`docker: invalid restart policy: ${restart}\nSee 'docker run --help'.`, 125);
+    if (restart !== "no" && has(parsed, "--rm")) {
+      return fail("docker: Conflicting options: --restart and --rm.\nSee 'docker run --help'.", 125);
+    }
+    const fileEnv: string[] = [];
+    for (const file of values(parsed, "--env-file")) {
+      const content = state.files[resolvePath(state.cwd, file)];
+      if (content === undefined) return fail(`docker: open ${file}: no such file or directory.\nSee 'docker run --help'.`, 125);
+      fileEnv.push(...Object.entries(parseEnvFile(content)).map(([key, entry]) => `${key}=${entry}`));
+    }
     const network = value(parsed, "--network") ?? "bridge";
     if (!state.networks.some((candidate) => candidate.name === network)) {
       return fail(`docker: Error response from daemon: network ${network} not found.\n\nRun 'docker run --help' for more information`, 125);
@@ -188,10 +208,15 @@ const run: CommandDef = {
       image,
       command,
       ports,
-      env: values(parsed, "--env").map((entry) => (entry.includes("=") ? entry : `${entry}=`)),
+      env: [...fileEnv, ...values(parsed, "--env").map((entry) => (entry.includes("=") ? entry : `${entry}=`))],
       mounts,
       networks: [network],
       autoRemove: has(parsed, "--rm"),
+      restart,
+      healthcheck: has(parsed, "--health-cmd") || Boolean(image.healthcheck),
+      user: value(parsed, "--user"),
+      limits: { memory: value(parsed, "--memory"), cpus: value(parsed, "--cpus") },
+      readOnly: has(parsed, "--read-only"),
     });
 
     const busy = ports.find((port) =>
@@ -233,7 +258,9 @@ const ps: CommandDef = {
   },
   run: ({ state, parsed }) => {
     const list = state.containers
-      .filter((container) => has(parsed, "--all") || has(parsed, "--last") || container.status === "running")
+      .filter(
+        (container) => has(parsed, "--all") || has(parsed, "--last") || (container.status !== "exited" && container.status !== "created"),
+      )
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, has(parsed, "--last") ? Number(value(parsed, "--last")) : undefined);
     if (has(parsed, "--quiet")) return ok(list.map((container) => shortId(container.id)).join("\n"));
@@ -271,7 +298,7 @@ const logs: CommandDef = {
   run: ({ state, parsed }) => {
     const container = findContainer(state, parsed.args[0]);
     if (!container) return noSuchContainer(parsed.args[0]);
-    let lines = containerLogs(container).split("\n");
+    let lines = containerLogs(state, container).split("\n");
     const tail = value(parsed, "--tail");
     if (tail && tail !== "all") lines = lines.slice(-Number(tail));
     if (has(parsed, "--timestamps")) lines = lines.map((line) => `${new Date(container.createdAt).toISOString()} ${line}`);
@@ -313,13 +340,13 @@ const lifecycle = (
 });
 
 const stop = lifecycle("stop", "stop", "Stop one or more running containers", (state, container) => {
-  if (container.status === "running") setExited(state, container, 0);
+  if (container.status === "running" || container.status === "restarting") setExited(state, container, 0, { manual: true });
   return undefined;
 });
 const kill = lifecycle("kill", "kill", "Kill one or more running containers", (state, container) => {
   if (container.status !== "running")
     return `Error response from daemon: cannot kill container: ${container.name}: container ${container.id} is not running`;
-  setExited(state, container, 137);
+  setExited(state, container, 137, { manual: true });
   return undefined;
 });
 const start = lifecycle("start", "start", "Start one or more stopped containers", (state, container) => {
@@ -333,7 +360,7 @@ const start = lifecycle("start", "start", "Start one or more stopped containers"
     : undefined;
 });
 const restart = lifecycle("restart", "restart", "Restart one or more containers", (state, container) => {
-  if (container.status === "running") setExited(state, container, 0);
+  if (container.status !== "exited") setExited(state, container, 0, { manual: true });
   const result = startContainer(state, container, { detach: true, interactive: false });
   return result.code ? result.out : undefined;
 });
@@ -352,8 +379,8 @@ const rm: CommandDef = {
   },
   run: ({ state, parsed }) =>
     eachContainer(state, parsed.args, (container) => {
-      if (container.status === "running" && !has(parsed, "--force")) {
-        return `Error response from daemon: cannot remove container "/${container.name}": container is running: stop the container before removing or force remove`;
+      if ((container.status === "running" || container.status === "restarting") && !has(parsed, "--force")) {
+        return `Error response from daemon: cannot remove container "/${container.name}": container is ${container.status}: stop the container before removing or force remove`;
       }
       state.containers = state.containers.filter((other) => other.id !== container.id);
       if (state.shell?.containerId === container.id) state.shell = null;
@@ -398,6 +425,7 @@ const SHELLS: Record<string, ShellName> = {
 
 /** Partagé avec docker compose exec. */
 export function execIn(state: SimState, container: Container, argv: string[], interactive: boolean, workdir?: string): Outcome {
+  if (container.status === "restarting") return daemonError(`Container ${container.id} is restarting, wait until the container is running`);
   if (container.status !== "running") return daemonError(`container ${container.id} is not running`);
   const shell = argv.length === 1 ? SHELLS[argv[0]] : undefined;
   if (shell) {
@@ -493,8 +521,8 @@ function statsTable(state: SimState, names: string[]): Outcome {
       shortId(container.id),
       container.name,
       container.status === "running" ? `${(0.01 + index * 0.13).toFixed(2)}%` : "0.00%",
-      `${memory.toFixed(2)}MiB / 7.66GiB`,
-      `${((memory / 7840) * 100).toFixed(2)}%`,
+      `${memory.toFixed(2)}MiB / ${container.limits.memory ? `${(memoryBytes(container.limits.memory) / 1024 ** 2).toFixed(0)}MiB` : "7.66GiB"}`,
+      `${((memory / (container.limits.memory ? memoryBytes(container.limits.memory) / 1024 ** 2 : 7840)) * 100).toFixed(2)}%`,
       container.status === "running" ? "1.21kB / 0B" : "0B / 0B",
       "0B / 0B",
       container.status === "running" ? String(1 + (index % 5)) : "0",
@@ -529,7 +557,7 @@ const top: CommandDef = {
     const container = findContainer(state, parsed.args[0]);
     if (!container) return noSuchContainer(parsed.args[0]);
     if (container.status !== "running") return daemonError(`container ${container.id} is not running`);
-    const rows = [["root", "2101", "2080", "0", "10:12", "?", "00:00:00", commandText(container)]];
+    const rows = [[container.user ?? "root", "2101", "2080", "0", "10:12", "?", "00:00:00", commandText(container)]];
     if (container.kind === "nginx") rows.push(["101", "2150", "2101", "0", "10:12", "?", "00:00:00", "nginx: worker process"]);
     return ok(table(["UID", "PID", "PPID", "C", "STIME", "TTY", "TIME", "CMD"], rows));
   },

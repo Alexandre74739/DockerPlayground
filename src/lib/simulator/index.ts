@@ -1,11 +1,14 @@
 import { tokenize } from "../command-parser";
 import { finalize } from "./command";
 import { runDocker } from "./registry";
-import { hostPrompt, runHostCommand, runSessionLine, sessionPrompt } from "./shell";
-import { cloneState } from "./state";
+import { reconcile } from "./runtime";
+import { hostPrompt, runHostCommand, runInContainer, runSessionLine, sessionPrompt } from "./shell";
+import { cloneState, createState, type SimulatorSetup } from "./state";
 import type { ExecResult, SimState } from "./types";
 
 export { createState, type SimulatorSetup } from "./state";
+export { resolveHost } from "./runtime";
+export { runHostCommand } from "./shell";
 export type { ExecResult, Prompt, SimState } from "./types";
 
 /** Découpe une ligne sur les opérateurs `&&` et `;`. */
@@ -20,6 +23,23 @@ function splitChain(tokens: string[]): { argv: string[]; operator: "&&" | ";" | 
 
 /** Exécute une ligne saisie dans le terminal et renvoie la sortie et le nouvel état. */
 export function execute(state: SimState, line: string): ExecResult {
+  const result = executeLine(state, line);
+  reconcile(result.state, (container, argv) => runInContainer(result.state, container, argv));
+  return result;
+}
+
+/** Environnement initial d'un exercice, y compris les commandes de préparation (setup.commands). */
+export function createEnvironment(setup: SimulatorSetup = {}): SimState {
+  let state = createState(setup);
+  for (const command of setup.commands ?? []) {
+    const result = execute(state, command);
+    if (result.exitCode !== 0 && !result.prompt?.blocking) throw new Error(`Préparation impossible (${command}) :\n${result.output}`);
+    state = result.prompt?.blocking ? result.prompt.interrupt!(result.state).state : result.state;
+  }
+  return state;
+}
+
+function executeLine(state: SimState, line: string): ExecResult {
   const next = cloneState(state);
   if (next.shell) return finalize(next, runSessionLine(next, line.trim(), tokenize(line)));
 

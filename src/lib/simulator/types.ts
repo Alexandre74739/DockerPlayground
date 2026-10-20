@@ -17,10 +17,18 @@ export type Image = {
   kind: ImageKind;
   /** L'image est basée sur Alpine (pas de bash). */
   alpine: boolean;
+  /** Variante « slim » d'une image Debian. */
+  slim?: boolean;
+  /** Image de base déclarée par le premier FROM de l'étape finale (pour docker scout). */
+  base?: string;
   cmd: string[];
   workdir: string;
   exposed: string[];
   env: string[];
+  /** Utilisateur défini par l'instruction USER (root par défaut). */
+  user?: string;
+  healthcheck?: boolean;
+  platforms?: string[];
   fs: FileSystem;
   history: { createdBy: string; size: number }[];
   /** Empreinte du build (Dockerfile + contexte) pour simuler le cache. */
@@ -31,7 +39,7 @@ export type PortBinding = { host: string; container: string };
 
 export type Mount = { type: "volume" | "bind"; source: string; target: string; readOnly: boolean };
 
-export type ContainerStatus = "created" | "running" | "exited";
+export type ContainerStatus = "created" | "running" | "restarting" | "exited";
 
 export type Container = {
   id: string;
@@ -49,13 +57,21 @@ export type Container = {
   env: string[];
   mounts: Mount[];
   networks: string[];
+  /** Noms DNS supplémentaires sur les réseaux (nom du service Compose). */
+  aliases: string[];
   autoRemove: boolean;
+  /** Politique de redémarrage : no, always, unless-stopped, on-failure. */
+  restart: string;
+  healthcheck: boolean;
+  user?: string;
+  limits: { memory?: string; cpus?: string };
+  readOnly: boolean;
   fs: FileSystem;
   kind: ImageKind;
   alpine: boolean;
   /** Sortie produite par la commande du conteneur (si différente des journaux par défaut). */
   output?: string;
-  compose?: { project: string; service: string };
+  compose?: { project: string; service: string; configHash: string };
 };
 
 export type Volume = { name: string; createdAt: number; compose?: string };
@@ -73,20 +89,23 @@ export type ShellSession = {
   stopOnExit: boolean;
 };
 
-export type ComposeService = {
-  name: string;
-  image?: string;
-  build?: boolean;
-  ports?: string[];
-  env?: string[];
-  volumes?: string[];
-  dependsOn?: string[];
+/** Dépôt publié sur le Docker Hub simulé. */
+export type HubRepo = {
+  private: boolean;
+  tags: Record<string, { platforms: string[]; pushedAt: number; image?: Omit<Image, "id" | "tags"> }>;
 };
 
-export type ComposeProject = {
-  fileName: string;
-  services: ComposeService[];
-  volumes: string[];
+/**
+ * Comportement de l'application des images construites (kind "app") :
+ * port d'écoute, réponse HTTP et dépendances obligatoires.
+ */
+export type AppBehavior = {
+  port: number;
+  response: string;
+  /** Variables sans lesquelles l'application plante au démarrage. */
+  requiredEnv: string[];
+  /** Variables contenant une URL de service (base, cache) à joindre au démarrage. */
+  urlEnv: string[];
 };
 
 export type SimState = {
@@ -102,11 +121,12 @@ export type SimState = {
   shell: ShellSession | null;
   /** Utilisateur connecté à Docker Hub. */
   auth: string | null;
+  /** Organisations Docker Hub dont l'utilisateur est membre. */
+  orgs: string[];
   context: string;
   buildCache: number;
-  /** Dépôts publiés sur Docker Hub : "alex/mon-app" → tags. */
-  hub: Record<string, string[]>;
-  compose: ComposeProject | null;
+  hub: Record<string, HubRepo>;
+  app: AppBehavior;
 };
 
 /** Question interactive posée par une commande (mot de passe, confirmation…). */

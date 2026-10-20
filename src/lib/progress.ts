@@ -12,10 +12,14 @@ export type Progress = {
   lessonsRead: string[];
   /** Meilleur score par module, en pourcentage. */
   quizScores: Record<string, number>;
+  /** Meilleur résultat par cas pratique. */
+  caseResults: Record<string, CaseResult>;
 };
 
+export type CaseResult = { bestScore: number; bestTimeMs: number; deliveries: number; lastDeliveredAt: number };
+
 const STORAGE_KEY = "docker-playground:progress";
-const EMPTY: Progress = { completedExercises: [], lessonsRead: [], quizScores: {} };
+const EMPTY: Progress = { completedExercises: [], lessonsRead: [], quizScores: {}, caseResults: {} };
 
 let cache: Progress | null = null;
 const listeners = new Set<() => void>();
@@ -66,6 +70,20 @@ export function saveQuizScore(moduleId: string, percent: number) {
   const current = read();
   const best = Math.max(current.quizScores[moduleId] ?? 0, percent);
   write({ ...current, quizScores: { ...current.quizScores, [moduleId]: best } });
+}
+
+/** Enregistre une livraison de cas pratique et conserve le meilleur score (puis le meilleur temps). */
+export function saveCaseResult(caseId: string, score: number, timeMs: number) {
+  const current = read();
+  const previous = current.caseResults[caseId];
+  const better = !previous || score > previous.bestScore || (score === previous.bestScore && timeMs < previous.bestTimeMs);
+  const result: CaseResult = {
+    bestScore: better ? score : previous.bestScore,
+    bestTimeMs: better ? timeMs : previous.bestTimeMs,
+    deliveries: (previous?.deliveries ?? 0) + 1,
+    lastDeliveredAt: Date.now(),
+  };
+  write({ ...current, caseResults: { ...current.caseResults, [caseId]: result } });
 }
 
 export function resetProgress() {

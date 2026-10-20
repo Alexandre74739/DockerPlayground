@@ -27,11 +27,15 @@ export type CommandStep = {
   /** Une solution type, affichée sur demande. */
   solution: string;
   hint: string;
+  /** "failure" : l'étape consiste à constater une erreur (code de sortie non nul). */
+  expect?: "success" | "failure";
 };
 
 export type FileCheck = {
   pattern: RegExp;
   label: string;
+  /** La vérification réussit si le motif est ABSENT (ex: pas de mot de passe en clair). */
+  absent?: boolean;
 };
 
 type BaseExercise = {
@@ -87,7 +91,29 @@ export type Resource = {
 };
 
 /** Nom d'une icône de la bibliothèque lucide (voir components/ui/ModuleIcon). */
-export type ModuleIconName = "rocket" | "layers" | "box" | "hammer" | "database" | "puzzle" | "cloud" | "brush";
+export type ModuleIconName =
+  | "rocket"
+  | "layers"
+  | "box"
+  | "hammer"
+  | "database"
+  | "puzzle"
+  | "cloud"
+  | "brush"
+  | "package"
+  | "sliders"
+  | "shield"
+  | "users"
+  | "git"
+  | "bug";
+
+/** Parcours : suite de modules autour d'un objectif. */
+export type Track = {
+  id: string;
+  title: string;
+  description: string;
+  moduleIds: string[];
+};
 
 export type Module = {
   id: string;

@@ -85,4 +85,62 @@ export const cheatSheet: CheatSheetSection[] = [
       { command: "COPY --from=build /app/dist ./dist", description: "Copier depuis une autre étape (multi-stage)" },
     ],
   },
+  {
+    title: "Configuration et secrets",
+    commands: [
+      { command: "docker run --env-file .env image", description: "Variables depuis un fichier" },
+      { command: "docker exec api printenv DATABASE_URL", description: "Valeur vue par le conteneur" },
+      { command: "image: acme/api:${TAG:-latest}", description: "Interpolation avec valeur par défaut (Compose)" },
+      { command: "env_file: [.env]", description: "Injecter un fichier dans le conteneur (Compose)" },
+      { command: "docker compose config", description: "Configuration finale, variables résolues" },
+      { command: "docker build --secret id=token,src=.token .", description: "Secret de build, absent de l'image" },
+    ],
+  },
+  {
+    title: "Compose en équipe",
+    commands: [
+      { command: "depends_on: { db: { condition: service_healthy } }", description: "Attendre que la dépendance soit prête" },
+      { command: "restart: unless-stopped", description: "Redémarrage automatique" },
+      { command: "docker compose -f compose.yaml -f compose.prod.yaml up -d", description: "Fusionner un fichier d'environnement" },
+      { command: "docker compose --profile tools up -d", description: "Activer des services optionnels" },
+      { command: "docker compose -p mon-projet up -d", description: "Nommer le projet" },
+      { command: "docker compose up -d --force-recreate", description: "Recréer les conteneurs" },
+    ],
+  },
+  {
+    title: "Docker Hub, CI/CD et multi-plateforme",
+    commands: [
+      { command: "docker push --all-tags acme/api", description: "Publier tous les tags d'un dépôt" },
+      {
+        command: "docker buildx build --platform linux/amd64,linux/arm64 -t acme/api:2.0.0 --push .",
+        description: "Image multi-plateforme publiée",
+      },
+      { command: "docker buildx imagetools inspect acme/api:2.0.0", description: "Plateformes disponibles sur le registre" },
+      { command: "docker save -o api.tar api:1.0", description: "Exporter une image dans une archive" },
+      { command: "docker load -i api.tar", description: "Importer une archive" },
+      { command: "docker init", description: "Générer Dockerfile, compose.yaml et .dockerignore" },
+    ],
+  },
+  {
+    title: "Diagnostic",
+    commands: [
+      { command: "docker ps -a", description: "État de tous les conteneurs (Exited, Restarting…)" },
+      { command: "docker logs --tail 50 -f api", description: "Fin des journaux, en direct" },
+      { command: "docker inspect --format '{{.State.ExitCode}}' api", description: "Un champ précis de l'inspection" },
+      { command: "docker inspect --format '{{.NetworkSettings.IPAddress}}' api", description: "Adresse IP d'un conteneur" },
+      { command: "docker network connect app-net api", description: "Réparer un problème de DNS entre conteneurs" },
+      { command: "docker top api", description: "Processus en cours" },
+    ],
+  },
+  {
+    title: "Sécurité et optimisation",
+    commands: [
+      { command: "USER node", description: "Ne pas exécuter l'application en root (Dockerfile)" },
+      { command: "HEALTHCHECK CMD wget -qO- http://localhost:3000/ || exit 1", description: "Signaler l'état de santé (Dockerfile)" },
+      { command: "docker scout quickview api:1.0", description: "Résumé des vulnérabilités" },
+      { command: "docker scout recommendations api:1.0", description: "Image de base plus sûre" },
+      { command: "docker run --memory 256m --cpus 0.5 image", description: "Limiter mémoire et CPU" },
+      { command: "docker run --read-only image", description: "Système de fichiers en lecture seule" },
+    ],
+  },
 ];

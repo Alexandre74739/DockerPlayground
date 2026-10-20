@@ -48,7 +48,9 @@ const SUBCOMMANDS: Record<string, string[]> = {
   network: ["connect", "create", "disconnect", "inspect", "ls", "prune", "rm"],
   system: ["df", "info", "prune"],
   context: ["ls", "show", "use"],
-  compose: ["build", "config", "down", "exec", "logs", "ps", "restart", "start", "stop", "up"],
+  compose: ["build", "config", "down", "exec", "images", "logs", "ps", "restart", "start", "stop", "up"],
+  scout: ["cves", "quickview", "recommendations"],
+  buildx: ["build", "imagetools"],
 };
 
 const HOST_COMMANDS = ["cat", "cd", "clear", "curl", "docker", "echo", "help", "ls", "mkdir", "pwd", "touch", "whoami"];

@@ -108,6 +108,9 @@ function curl(state: SimState, args: string[]): ShellOutput {
   if (!container) return { out: `curl: (7) Failed to connect to localhost port ${port} after 0 ms: Couldn't connect to server`, code: 7 };
   const bind = container.ports.find((candidate) => candidate.host === port)!;
   const docRoot = container.kind === "nginx" ? "/usr/share/nginx/html" : container.kind === "httpd" ? "/usr/local/apache2/htdocs" : null;
+  const listening = docRoot ? "80" : container.kind === "app" ? String(state.app.port) : undefined;
+  if (listening && bind.container.split("/")[0] !== listening)
+    return { out: "curl: (56) Recv failure: Connection reset by peer", code: 56 };
   if (docRoot) {
     const mount = container.mounts.find((candidate) => candidate.type === "bind" && candidate.target === docRoot);
     const page = mount ? state.files[`${mount.source}/index.html`] : container.fs[`${docRoot}/index.html`];
@@ -118,11 +121,27 @@ function curl(state: SimState, args: string[]): ShellOutput {
           code: 0,
         };
   }
-  if (container.kind === "app" && bind.container.startsWith("3000")) return { out: "Hello from Docker!", code: 0 };
+  if (container.kind === "app") return { out: state.app.response, code: 0 };
   return { out: "curl: (52) Empty reply from server", code: 52 };
 }
 
+/** Redirections simples : commande > fichier, commande >> fichier. */
 export function runHostCommand(state: SimState, argv: string[]): ShellOutput {
+  const index = argv.findIndex((token) => token.startsWith(">"));
+  if (index === -1) return runHostProgram(state, argv);
+  const operator = argv[index].startsWith(">>") ? ">>" : ">";
+  const target = argv[index].slice(operator.length) || argv[index + 1];
+  if (!target) return { out: "bash: syntax error near unexpected token `newline'", code: 2 };
+  const result = runHostProgram(state, argv.slice(0, index));
+  if (result.code === 127) return result;
+  const path = resolvePath(state.cwd, target);
+  const previous = state.files[path] ?? "";
+  const text = result.out ? `${result.out}\n` : "";
+  state.files[path] = operator === ">>" ? `${previous}${previous && !previous.endsWith("\n") ? "\n" : ""}${text}` : text;
+  return { out: "", code: result.code };
+}
+
+function runHostProgram(state: SimState, argv: string[]): ShellOutput {
   const [program, ...args] = argv;
   const owner = state.user;
   switch (program) {
@@ -269,13 +288,29 @@ export function runInContainer(
     case "echo":
       return result(args.join(" "));
     case "whoami":
-      return result("root");
+      return result(container.user ?? "root");
     case "id":
-      return result("uid=0(root) gid=0(root) groups=0(root)");
+      return result(
+        container.user && container.user !== "root"
+          ? `uid=1000(${container.user}) gid=1000(${container.user}) groups=1000(${container.user})`
+          : "uid=0(root) gid=0(root) groups=0(root)",
+      );
     case "hostname":
       return result(shortId(container.id));
-    case "env":
     case "printenv":
+      if (args[0]) {
+        const entry = container.env.find((candidate) => candidate.startsWith(`${args[0]}=`));
+        return entry ? result(entry.slice(args[0].length + 1)) : result("", 1);
+      }
+      return result(
+        [
+          `HOSTNAME=${shortId(container.id)}`,
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          ...container.env,
+          "HOME=/root",
+        ].join("\n"),
+      );
+    case "env":
       return result(
         [
           `HOSTNAME=${shortId(container.id)}`,
@@ -292,6 +327,7 @@ export function runInContainer(
       return result(new Date().toUTCString().replace("GMT", "UTC"));
     case "touch":
     case "mkdir":
+      if (container.readOnly) return result(`${program}: cannot touch '${args.at(-1)}': Read-only file system`, 1);
       for (const arg of args.filter((value) => !value.startsWith("-"))) {
         const path = resolvePath(cwd, arg);
         if (program === "touch") container.fs[path] ??= "";
@@ -313,8 +349,10 @@ export function sessionPrompt(state: SimState): string {
   const container = state.containers.find((candidate) => candidate.id === session.containerId);
   if (session.shell === "node") return ">";
   if (session.shell === "python") return ">>>";
-  if (session.shell === "sh") return container?.alpine ? `${session.cwd} #` : "#";
-  return `root@${shortId(container?.id ?? "")}:${session.cwd === "/root" ? "~" : session.cwd}#`;
+  const root = !container?.user || container.user === "root";
+  const symbol = root ? "#" : "$";
+  if (session.shell === "sh") return container?.alpine ? `${session.cwd} ${symbol}` : symbol;
+  return `${container?.user ?? "root"}@${shortId(container?.id ?? "")}:${session.cwd === "/root" ? "~" : session.cwd}${symbol}`;
 }
 
 export function openSessionBanner(shell: ShellName): string {

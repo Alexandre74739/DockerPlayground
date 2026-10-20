@@ -1,11 +1,12 @@
 import type { CommandSpec, Parsed } from "./args";
+import type { ComposeOptions } from "./compose-file";
 import { cloneState } from "./state";
 import type { ExecResult, Prompt, SimState } from "./types";
 
 /** Résultat d'une commande avant conversion en ExecResult. */
 export type Outcome = { out?: string; code?: number; prompt?: Prompt };
 
-export type Ctx = { state: SimState; parsed: Parsed; command: string };
+export type Ctx = { state: SimState; parsed: Parsed; command: string; compose?: ComposeOptions };
 
 export type CommandDef = {
   /** Chemin de la commande, ex: "container ls". */

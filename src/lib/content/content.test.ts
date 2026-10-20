@@ -23,12 +23,12 @@ describe.each(modules)("module $id", (mod) => {
       });
     } else {
       it(`${exercise.id} : la solution passe toutes les vérifications`, () => {
-        const failing = exercise.checks.filter((check) => !check.pattern.test(exercise.solution));
+        const failing = exercise.checks.filter((check) => check.pattern.test(exercise.solution) === Boolean(check.absent));
         expect(failing.map((check) => check.label)).toEqual([]);
       });
 
       it(`${exercise.id} : le fichier de départ ne passe pas toutes les vérifications`, () => {
-        expect(exercise.checks.every((check) => check.pattern.test(exercise.starter))).toBe(false);
+        expect(exercise.checks.every((check) => check.pattern.test(exercise.starter) !== Boolean(check.absent))).toBe(false);
       });
     }
   }

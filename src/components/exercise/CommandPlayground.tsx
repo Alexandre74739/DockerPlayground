@@ -7,6 +7,7 @@ import type { CommandExercise } from "@/lib/types";
 import { RichText } from "../RichText";
 import { Terminal } from "../Terminal";
 import { Button } from "../ui/Button";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Panel } from "./Panel";
 import { type CommandEvent, useSimulator } from "./useSimulator";
 
@@ -144,13 +145,21 @@ export function CommandPlayground({ exercise, onComplete }: CommandPlaygroundPro
           ))}
         </dl>
 
-        <button
-          type="button"
-          onClick={restart}
-          className="inline-flex items-center gap-1.5 self-start px-1 text-xs text-ink-500 transition-colors hover:text-ink-100"
-        >
-          <RotateCcw className="h-3 w-3" /> Réinitialiser l&apos;environnement
-        </button>
+        <ConfirmDialog
+          title="Réinitialiser l'environnement ?"
+          description="Le terminal, les conteneurs, les images et les fichiers reviennent à leur état de départ, et l'exercice reprend à la première étape."
+          confirmLabel="Réinitialiser"
+          onConfirm={restart}
+          trigger={(open) => (
+            <button
+              type="button"
+              onClick={open}
+              className="inline-flex items-center gap-1.5 self-start px-1 text-xs text-ink-500 transition-colors hover:text-ink-100"
+            >
+              <RotateCcw className="h-3 w-3" /> Réinitialiser l&apos;environnement
+            </button>
+          )}
+        />
       </aside>
 
       <Terminal

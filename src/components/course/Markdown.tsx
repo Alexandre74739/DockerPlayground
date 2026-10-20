@@ -2,7 +2,7 @@ import { Info } from "lucide-react";
 import type { ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { slugify } from "@/lib/content/lessons";
+import { slugify } from "@/lib/slugify";
 
 function textOf(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") return String(node);

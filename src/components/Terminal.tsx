@@ -20,6 +20,8 @@ type TerminalProps = {
   onClear: () => void;
   /** Complétion par Tab : renvoie la ligne complétée et les choix possibles. */
   onComplete?: (value: string) => { line: string; options: string[] };
+  /** Taille du terminal (par défaut adaptée à l'écran). */
+  className?: string;
 };
 
 /** Colore une invite de shell : « alex@pc:~/projet$ ». */
@@ -42,7 +44,7 @@ function PromptText({ text }: { text: string }) {
  * Émulateur de terminal : rendu de la ligne avec curseur bloc, historique,
  * raccourcis clavier usuels et clic droit pour copier / coller.
  */
-export function Terminal({ title, lines, prompt, onSubmit, onInterrupt, onClear, onComplete }: TerminalProps) {
+export function Terminal({ title, lines, prompt, onSubmit, onInterrupt, onClear, onComplete, className }: TerminalProps) {
   const [value, setValue] = useState("");
   const [cursor, setCursor] = useState(0);
   const [focused, setFocused] = useState(false);
@@ -151,7 +153,9 @@ export function Terminal({ title, lines, prompt, onSubmit, onInterrupt, onClear,
   const position = prompt?.mask ? 0 : cursor;
 
   return (
-    <div className="flex h-[min(600px,calc(100vh-21rem))] min-h-[380px] flex-col overflow-hidden rounded-xl border border-ink-800 bg-ink-950">
+    <div
+      className={`flex flex-col overflow-hidden rounded-xl border border-ink-800 bg-ink-950 ${className ?? "h-[min(600px,calc(100vh-21rem))] min-h-[380px]"}`}
+    >
       <div className="flex h-10 shrink-0 items-center gap-3 border-b border-ink-800 px-4">
         <div className="flex gap-1.5" aria-hidden>
           <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />

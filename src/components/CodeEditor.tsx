@@ -8,12 +8,21 @@ type CodeEditorProps = {
   onChange: (value: string) => void;
   /** Ctrl+Entrée. */
   onSubmit?: () => void;
+  submitLabel?: string;
+  className?: string;
 };
 
 const INDENT = "  ";
 
 /** Éditeur de code léger façon IDE : numéros de ligne, Tab pour indenter, Ctrl+Entrée pour vérifier. */
-export function CodeEditor({ fileName, value, onChange, onSubmit }: CodeEditorProps) {
+export function CodeEditor({
+  fileName,
+  value,
+  onChange,
+  onSubmit,
+  submitLabel = "Ctrl + Entrée pour vérifier",
+  className,
+}: CodeEditorProps) {
   const gutterRef = useRef<HTMLDivElement>(null);
   const lineCount = value.split("\n").length;
 
@@ -34,10 +43,12 @@ export function CodeEditor({ fileName, value, onChange, onSubmit }: CodeEditorPr
   }
 
   return (
-    <div className="flex h-[min(600px,calc(100vh-21rem))] min-h-[380px] flex-col overflow-hidden rounded-xl border border-ink-800 bg-ink-950">
+    <div
+      className={`flex flex-col overflow-hidden rounded-xl border border-ink-800 bg-ink-950 ${className ?? "h-[min(600px,calc(100vh-21rem))] min-h-[380px]"}`}
+    >
       <div className="flex h-10 shrink-0 items-center justify-between border-b border-ink-800 px-4">
         <span className="font-mono text-xs text-ink-200">{fileName}</span>
-        <span className="text-xs text-ink-500">Ctrl + Entrée pour vérifier</span>
+        {submitLabel && <span className="text-xs text-ink-500">{submitLabel}</span>}
       </div>
       <div className="flex min-h-0 flex-1 font-mono text-[13px] leading-6">
         <div ref={gutterRef} aria-hidden className="select-none overflow-hidden py-3 pl-4 pr-3 text-right text-ink-600">

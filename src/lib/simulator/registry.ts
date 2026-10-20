@@ -1,5 +1,6 @@
 import { formatHelp, parseArgs } from "./args";
 import { type CommandDef, fail, ok, type Outcome } from "./command";
+import type { ComposeOptions } from "./compose-file";
 import { buildCommand } from "./commands/build";
 import { composeCommands } from "./commands/compose";
 import { containerCommands } from "./commands/containers";
@@ -7,6 +8,7 @@ import { hubCommands } from "./commands/hub";
 import { imageCommands } from "./commands/images";
 import { storageCommands } from "./commands/storage";
 import { systemCommands, versionShort } from "./commands/system";
+import { toolCommands } from "./commands/tools";
 import type { SimState } from "./types";
 
 const commands: CommandDef[] = [
@@ -16,11 +18,12 @@ const commands: CommandDef[] = [
   ...composeCommands,
   ...hubCommands,
   ...systemCommands,
+  ...toolCommands,
 ];
 
-const index = new Map<string, CommandDef>();
+const commandIndex = new Map<string, CommandDef>();
 for (const command of commands) {
-  for (const path of [command.path, ...(command.aliases ?? [])]) index.set(path, command);
+  for (const path of [command.path, ...(command.aliases ?? [])]) commandIndex.set(path, command);
 }
 
 const GROUPS: Record<string, string> = {
@@ -31,6 +34,7 @@ const GROUPS: Record<string, string> = {
   context: "Manage contexts",
   image: "Manage images",
   network: "Manage networks",
+  scout: "Docker Scout",
   system: "Manage Docker",
   volume: "Manage volumes",
 };
@@ -53,6 +57,7 @@ Common Commands:
   search      Search Docker Hub for images
   version     Show the Docker version information
   info        Display system-wide information
+  init        Creates Docker-related starter files for your project
 
 Management Commands:
   builder     Manage builds
@@ -62,6 +67,7 @@ Management Commands:
   context     Manage contexts
   image       Manage images
   network     Manage networks
+  scout*      Docker Scout
   system      Manage Docker
   volume      Manage volumes
 
@@ -71,9 +77,11 @@ Commands:
   inspect     Return low-level information on Docker objects
   kill        Kill one or more running containers
   logs        Fetch the logs of a container
+  load        Load an image from a tar archive or STDIN
   restart     Restart one or more containers
   rm          Remove one or more containers
   rmi         Remove one or more images
+  save        Save one or more images to a tar archive (streamed to STDOUT by default)
   start       Start one or more stopped containers
   stats       Display a live stream of container(s) resource usage statistics
   stop        Stop one or more running containers
@@ -89,7 +97,7 @@ Run 'docker COMMAND --help' for more information on a command.
 For more help on how to use Docker, head to https://docs.docker.com/go/guides/`;
 
 function groupHelp(group: string): string {
-  const subcommands = [...index.entries()]
+  const subcommands = [...commandIndex.entries()]
     .filter(([path]) => path.startsWith(`${group} `) && path.split(" ").length === 2)
     .map(([path, command]) => [path.split(" ")[1], command.spec.description.split("\n")[0]] as const);
   const unique = [...new Map(subcommands).entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -105,10 +113,11 @@ export function runDocker(state: SimState, args: string[]): Outcome {
   if (args[0] === "--version" || args[0] === "-v") return ok(versionShort);
   if (args[0] === "help") return runDocker(state, [...args.slice(1), "--help"]);
   if (args[0] === "builder" && args[1] === "build") return runCommand(state, buildCommand, "builder build", args.slice(2));
+  if (args[0] === "compose") return runCompose(state, args.slice(1));
 
   for (const length of [3, 2, 1]) {
     const path = args.slice(0, length).join(" ");
-    const command = index.get(path);
+    const command = commandIndex.get(path);
     if (command && args.length >= length) return runCommand(state, command, path, args.slice(length));
   }
 
@@ -123,9 +132,29 @@ export function runDocker(state: SimState, args: string[]): Outcome {
   return fail(`docker: '${first}' is not a docker command.\nSee 'docker --help'`);
 }
 
-function runCommand(state: SimState, command: CommandDef, path: string, rest: string[]): Outcome {
+function runCommand(state: SimState, command: CommandDef, path: string, rest: string[], compose?: ComposeOptions): Outcome {
   const parsed = parseArgs(path, command.spec, rest);
   if (parsed.ok === "help") return ok(formatHelp(command.spec));
   if (!parsed.ok) return fail(parsed.error, command.path === "container run" ? 125 : 1);
-  return command.run({ state, parsed: parsed.parsed, command: path });
+  return command.run({ state, parsed: parsed.parsed, command: path, compose });
+}
+
+/** Options globales de Compose (-f, -p, --profile), placées avant la sous-commande. */
+function runCompose(state: SimState, args: string[]): Outcome {
+  const options: ComposeOptions = { files: [], profiles: [] };
+  let index = 0;
+  for (; index < args.length; index++) {
+    const [flag, inline] = args[index].includes("=") ? args[index].split(/=(.*)/) : [args[index], undefined];
+    const takeValue = () => inline ?? args[++index];
+    if (flag === "-f" || flag === "--file") options.files.push(takeValue());
+    else if (flag === "-p" || flag === "--project-name") options.projectName = takeValue();
+    else if (flag === "--profile") options.profiles.push(takeValue());
+    else if (flag === "--env-file") takeValue();
+    else break;
+  }
+  const rest = args.slice(index);
+  if (rest.length === 0 || rest[0] === "--help" || rest[0] === "-h") return ok(groupHelp("compose"));
+  const def = commandIndex.get(`compose ${rest[0]}`);
+  if (!def) return fail(`unknown docker command: "compose ${rest[0]}"\nRun 'docker compose --help' for more information`);
+  return runCommand(state, def, `compose ${rest[0]}`, rest.slice(1), options);
 }

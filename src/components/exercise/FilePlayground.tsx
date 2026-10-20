@@ -6,6 +6,7 @@ import type { FileExercise } from "@/lib/types";
 import { CodeEditor } from "../CodeEditor";
 import { RichText } from "../RichText";
 import { Button } from "../ui/Button";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Panel } from "./Panel";
 
 type FilePlaygroundProps = {
@@ -22,7 +23,7 @@ export function FilePlayground({ exercise, onComplete }: FilePlaygroundProps) {
   const allPassed = results !== null && passed === exercise.checks.length;
 
   function verify() {
-    const next = exercise.checks.map((check) => check.pattern.test(content));
+    const next = exercise.checks.map((check) => check.pattern.test(content) !== Boolean(check.absent));
     setResults(next);
     if (next.every(Boolean)) onComplete();
   }
@@ -76,9 +77,17 @@ export function FilePlayground({ exercise, onComplete }: FilePlaygroundProps) {
           <Button onClick={() => setShowSolution((value) => !value)} aria-expanded={showSolution}>
             {showSolution ? "Masquer" : "Réponse"}
           </Button>
-          <Button variant="ghost" onClick={reset} aria-label="Réinitialiser le fichier">
-            <RotateCcw className="h-4 w-4" />
-          </Button>
+          <ConfirmDialog
+            title="Réinitialiser le fichier ?"
+            description="Ton travail sur ce fichier sera remplacé par la version de départ."
+            confirmLabel="Réinitialiser"
+            onConfirm={reset}
+            trigger={(open) => (
+              <Button variant="ghost" onClick={open} aria-label="Réinitialiser le fichier">
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
+          />
         </div>
 
         {showSolution && (
