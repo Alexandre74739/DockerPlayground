@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Header } from "@/components/Header";
+import { KonamiCode } from "@/components/KonamiCode";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <span>Docker Playground est conçe par PEREZ Alexandre-Philippe, le meilleur dev</span>
             <span>Environnement simulé — aucune commande n&apos;est exécutée sur ta machine.</span>
           </div>
+          <KonamiCode />
         </footer>
       </body>
     </html>

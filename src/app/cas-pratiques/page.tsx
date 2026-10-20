@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CaseCard } from "@/components/cases/CaseCard";
+import { CaseList } from "@/components/cases/CaseList";
 import { cases } from "@/lib/cases/catalog";
 import type { CaseLevel } from "@/lib/cases/types";
 
@@ -43,26 +43,10 @@ export default function CasesPage() {
         ))}
       </section>
 
-      {LEVELS.map((level) => (
-        <section key={level}>
-          <h2 className="mb-5 text-xl font-semibold tracking-tight text-ink-100">{level}</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {cases
-              .filter((practice) => practice.level === level)
-              .map((practice) => (
-                <CaseCard
-                  key={practice.id}
-                  id={practice.id}
-                  title={practice.title}
-                  level={practice.level}
-                  duration={practice.duration}
-                  skills={practice.skills}
-                  summary={practice.summary}
-                />
-              ))}
-          </div>
-        </section>
-      ))}
+      <CaseList
+        levels={LEVELS}
+        cases={cases.map(({ id, title, level, duration, skills, summary }) => ({ id, title, level, duration, skills, summary }))}
+      />
     </div>
   );
 }
