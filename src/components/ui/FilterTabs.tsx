@@ -18,7 +18,7 @@ export function FilterTabs({ value, onChange, allLabel, label }: FilterTabsProps
     { id: "done", label: "Terminés" },
   ];
   return (
-    <div className="flex flex-wrap gap-1 rounded-lg border border-ink-800 bg-ink-850 p-1" role="radiogroup" aria-label={label}>
+    <div className="flex w-fit flex-wrap gap-1 rounded-lg border border-ink-800 bg-ink-850 p-1" role="radiogroup" aria-label={label}>
       {options.map((option) => (
         <button
           key={option.id}
