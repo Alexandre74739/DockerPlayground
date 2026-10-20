@@ -8,10 +8,11 @@ export function GlobalProgress() {
   const { completedExercises } = useProgress();
   const done = completedExercises.length;
   return (
-    <div className="flex items-center gap-3 font-mono text-xs text-ink-400">
-      <ProgressBar value={done} max={totalExercises} className="w-28" tone="neon" />
-      <span className="tabular-nums">
-        <span className="text-ink-100">{done}</span>/{totalExercises}
+    <div className="flex items-center gap-3 text-xs text-ink-400">
+      <span>Progression</span>
+      <ProgressBar value={done} max={totalExercises} className="w-24" />
+      <span className="font-mono tabular-nums text-ink-300">
+        {done}/{totalExercises}
       </span>
     </div>
   );

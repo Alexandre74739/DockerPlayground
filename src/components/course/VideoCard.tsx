@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { useState } from "react";
 import type { Video } from "@/lib/types";
 
@@ -10,11 +10,10 @@ import type { Video } from "@/lib/types";
  */
 export function VideoCard({ video }: { video: Video }) {
   const [playing, setPlaying] = useState(false);
-  const watchUrl = `https://www.youtube.com/watch?v=${video.youtubeId}`;
 
   return (
-    <figure className="overflow-hidden rounded-xl border border-ink-700 bg-ink-850">
-      <div className="relative aspect-video bg-ink-950">
+    <figure className="group">
+      <div className="relative aspect-video overflow-hidden rounded-lg border border-ink-800 bg-ink-950">
         {playing ? (
           <iframe
             src={`https://www.youtube-nocookie.com/embed/${video.youtubeId}?autoplay=1&rel=0`}
@@ -24,46 +23,37 @@ export function VideoCard({ video }: { video: Video }) {
             className="absolute inset-0 h-full w-full"
           />
         ) : (
-          <button
-            type="button"
-            onClick={() => setPlaying(true)}
-            className="group absolute inset-0"
-            aria-label={`Lire la vidéo : ${video.title}`}
-          >
+          <button type="button" onClick={() => setPlaying(true)} className="absolute inset-0" aria-label={`Lire la vidéo : ${video.title}`}>
             {/* eslint-disable-next-line @next/next/no-img-element -- miniature externe, sans optimisation nécessaire */}
             <img
               src={`https://i.ytimg.com/vi/${video.youtubeId}/hqdefault.jpg`}
               alt=""
               loading="lazy"
-              className="h-full w-full object-cover opacity-70 transition group-hover:opacity-90"
+              className="h-full w-full object-cover opacity-80 grayscale-[35%] transition duration-300 group-hover:opacity-100 group-hover:grayscale-0"
             />
             <span className="absolute inset-0 grid place-items-center">
-              <span className="grid h-14 w-14 place-items-center rounded-full bg-neon-400 text-ink-950 shadow-lg transition group-hover:scale-110">
-                <Play className="ml-0.5 h-6 w-6" fill="currentColor" />
+              <span className="grid h-12 w-12 place-items-center rounded-full bg-ink-950/80 text-ink-100 backdrop-blur transition group-hover:bg-neon-400 group-hover:text-ink-950">
+                <Play className="ml-0.5 h-5 w-5" fill="currentColor" />
               </span>
             </span>
-            <span className="absolute bottom-2 right-2 rounded bg-ink-950/90 px-1.5 py-0.5 font-mono text-[11px] text-ink-100">
+            <span className="absolute bottom-2 right-2 rounded bg-ink-950/85 px-1.5 py-0.5 font-mono text-[11px] text-ink-200">
               {video.duration}
             </span>
           </button>
         )}
       </div>
-      <figcaption className="flex items-start justify-between gap-3 p-3.5">
-        <div className="min-w-0">
-          <p className="text-sm font-medium leading-snug text-ink-100">{video.title}</p>
-          <p className="mt-1 font-mono text-xs text-ink-400">
-            {video.author} · <span className={video.lang === "fr" ? "text-neon-400" : "text-azure-300"}>{video.lang.toUpperCase()}</span>
-          </p>
-        </div>
+      <figcaption className="mt-3">
         <a
-          href={watchUrl}
+          href={`https://www.youtube.com/watch?v=${video.youtubeId}`}
           target="_blank"
           rel="noreferrer"
-          className="shrink-0 text-ink-500 hover:text-ink-100"
-          aria-label="Ouvrir sur YouTube"
+          className="text-sm font-medium leading-snug text-ink-100 hover:underline hover:decoration-ink-500 hover:underline-offset-[3px]"
         >
-          <ExternalLink className="h-4 w-4" />
+          {video.title}
         </a>
+        <p className="mt-1 text-xs text-ink-500">
+          {video.author} · {video.lang === "fr" ? "Français" : "Anglais"}
+        </p>
       </figcaption>
     </figure>
   );

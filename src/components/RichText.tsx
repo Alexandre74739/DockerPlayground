@@ -9,14 +9,14 @@ export function RichText({ text }: { text: string }) {
       {parts.map((part, index) => {
         if (part.startsWith("`") && part.endsWith("`")) {
           return (
-            <code key={index} className="rounded bg-ink-700/70 px-1.5 py-0.5 font-mono text-[0.88em] text-azure-200">
+            <code key={index} className="rounded-md bg-ink-800 px-1.5 py-0.5 font-mono text-[0.85em] text-ink-100">
               {part.slice(1, -1)}
             </code>
           );
         }
         if (part.startsWith("**") && part.endsWith("**")) {
           return (
-            <strong key={index} className="font-semibold text-white">
+            <strong key={index} className="font-semibold text-ink-100">
               {part.slice(2, -2)}
             </strong>
           );

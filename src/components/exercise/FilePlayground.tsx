@@ -1,11 +1,12 @@
 "use client";
 
-import { Check, CircleDashed, KeyRound, Play, RotateCcw, X } from "lucide-react";
+import { Check, Circle, RotateCcw, X } from "lucide-react";
 import { useState } from "react";
 import type { FileExercise } from "@/lib/types";
 import { CodeEditor } from "../CodeEditor";
 import { RichText } from "../RichText";
 import { Button } from "../ui/Button";
+import { Panel } from "./Panel";
 
 type FilePlaygroundProps = {
   exercise: FileExercise;
@@ -33,56 +34,55 @@ export function FilePlayground({ exercise, onComplete }: FilePlaygroundProps) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
+    <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
       <aside className="flex flex-col gap-4">
-        <section className="rounded-xl border border-ink-700 bg-ink-850 p-4">
-          <h2 className="mb-2 font-mono text-xs uppercase tracking-wider text-ink-400">Mission</h2>
-          <p className="text-sm leading-relaxed text-ink-100">
+        <Panel title="Consigne">
+          <p className="px-4 pb-4 text-sm leading-relaxed text-ink-300">
             <RichText text={exercise.instruction} />
           </p>
-        </section>
+        </Panel>
 
-        <section className="rounded-xl border border-ink-700 bg-ink-850">
-          <header className="flex items-center justify-between border-b border-ink-700 px-4 py-3">
-            <h2 className="font-mono text-xs uppercase tracking-wider text-ink-400">Vérifications</h2>
-            {results && (
-              <span className="font-mono text-xs text-ink-400">
-                <span className={allPassed ? "text-neon-400" : "text-ink-100"}>{passed}</span>/{exercise.checks.length}
+        <Panel
+          title="Vérifications"
+          aside={
+            results && (
+              <span className={`font-mono text-xs tabular-nums ${allPassed ? "text-neon-400" : "text-ink-500"}`}>
+                {passed}/{exercise.checks.length}
               </span>
-            )}
-          </header>
-          <ul className="space-y-2 px-4 py-3 text-sm">
+            )
+          }
+        >
+          <ul className="space-y-2 px-4 pb-4 text-sm">
             {exercise.checks.map((check, index) => {
               const ok = results?.[index];
-              const Icon = ok === undefined ? CircleDashed : ok ? Check : X;
+              const Icon = ok === undefined ? Circle : ok ? Check : X;
               return (
                 <li key={check.label} className="flex items-center gap-2.5">
                   <Icon
-                    className={`h-4 w-4 shrink-0 ${ok === undefined ? "text-ink-500" : ok ? "text-neon-400" : "text-rose-400"}`}
-                    strokeWidth={ok ? 3 : 2}
+                    className={`h-3.5 w-3.5 shrink-0 ${ok === undefined ? "text-ink-600" : ok ? "text-neon-400" : "text-danger"}`}
+                    strokeWidth={ok === undefined ? 2 : 3}
                   />
-                  <code className={`font-mono text-xs ${ok === false ? "text-ink-200" : "text-ink-300"}`}>{check.label}</code>
+                  <code className={`font-mono text-xs ${ok ? "text-ink-500" : "text-ink-300"}`}>{check.label}</code>
                 </li>
               );
             })}
           </ul>
-          {allPassed && <p className="border-t border-ink-700 px-4 py-3 text-sm font-medium text-neon-400">Fichier valide, bien joué !</p>}
-        </section>
+        </Panel>
 
-        <div className="flex flex-wrap gap-2">
-          <Button variant="primary" onClick={verify}>
-            <Play className="h-4 w-4" /> Vérifier
+        <div className="flex gap-2">
+          <Button variant="primary" className="flex-1" onClick={verify}>
+            Vérifier
           </Button>
           <Button onClick={() => setShowSolution((value) => !value)} aria-expanded={showSolution}>
-            <KeyRound className="h-4 w-4 text-azure-400" /> {showSolution ? "Masquer la réponse" : "Voir la réponse"}
+            {showSolution ? "Masquer" : "Réponse"}
           </Button>
-          <Button variant="ghost" onClick={reset}>
-            <RotateCcw className="h-4 w-4" /> Réinitialiser
+          <Button variant="ghost" onClick={reset} aria-label="Réinitialiser le fichier">
+            <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
 
         {showSolution && (
-          <pre className="overflow-x-auto rounded-xl border-l-2 border-azure-400 bg-azure-950 p-4 font-mono text-xs leading-relaxed text-azure-200">
+          <pre className="overflow-x-auto rounded-xl border border-ink-800 bg-ink-950 p-4 font-mono text-xs leading-relaxed text-ink-200">
             {exercise.solution}
           </pre>
         )}

@@ -21,13 +21,16 @@ export default async function QuizPage({ params }: PageProps<"/modules/[moduleId
   const next = modules[modules.indexOf(mod) + 1];
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-10">
       <div>
-        <Link href={`/modules/${mod.id}`} className="inline-flex items-center gap-1.5 font-mono text-xs text-ink-400 hover:text-neon-400">
-          <ArrowLeft className="h-3.5 w-3.5" /> {mod.title}
+        <Link
+          href={`/modules/${mod.id}`}
+          className="inline-flex items-center gap-1.5 text-sm text-ink-500 transition-colors hover:text-ink-100"
+        >
+          <ArrowLeft className="h-4 w-4" /> {mod.title}
         </Link>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">Quiz</h1>
-        <p className="mt-1 text-ink-400">{mod.title} — une seule réponse par question.</p>
+        <p className="mt-8 text-sm font-medium text-neon-400">Quiz</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink-100">{mod.title}</h1>
       </div>
       <Quiz
         moduleId={mod.id}

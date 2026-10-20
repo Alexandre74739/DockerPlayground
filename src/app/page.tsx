@@ -1,4 +1,3 @@
-import { BookOpen, ListChecks, SquareTerminal } from "lucide-react";
 import { ContinueButton } from "@/components/ContinueButton";
 import { VideoCard } from "@/components/course/VideoCard";
 import { HeroTerminal } from "@/components/HeroTerminal";
@@ -8,18 +7,22 @@ import { ButtonLink } from "@/components/ui/Button";
 import { featuredVideos, modules, totalExercises } from "@/lib/content";
 
 const STEPS = [
-  { icon: BookOpen, title: "Lire le cours", text: "Les notions expliquées simplement, avec des vidéos pour approfondir." },
-  {
-    icon: SquareTerminal,
-    title: "Pratiquer",
-    text: "Un terminal qui répond comme le vrai : erreurs comprises. À toi de trouver la commande.",
-  },
-  {
-    icon: ListChecks,
-    title: "Valider",
-    text: "Un quiz par module pour vérifier que c'est acquis, puis des labs en ligne pour aller plus loin.",
-  },
+  { title: "Comprendre", text: "Un cours court par module, complété par des vidéos." },
+  { title: "Pratiquer", text: "Un terminal qui répond comme le vrai. À toi de trouver la commande." },
+  { title: "Valider", text: "Un quiz par module, puis des labs en ligne pour aller plus loin." },
 ];
+
+function SectionHeading({ title, description, action }: { title: string; description?: string; action?: React.ReactNode }) {
+  return (
+    <div className="mb-6 flex items-end justify-between gap-4">
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight text-ink-100">{title}</h2>
+        {description && <p className="mt-1 text-sm text-ink-400">{description}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const stats = [
@@ -30,30 +33,27 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="space-y-20">
-      <section className="relative grid items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
-        <div className="bg-grid pointer-events-none absolute -inset-x-6 -inset-y-10 -z-10 [mask-image:radial-gradient(ellipse_at_top_left,black,transparent_70%)]" />
+    <div className="space-y-24">
+      <section className="grid items-center gap-12 lg:grid-cols-[1fr_1fr]">
         <div>
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-azure-400">{"// apprendre docker en pratiquant"}</p>
-          <h1 className="mt-4 text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-5xl">
-            La ligne de commande Docker, <span className="text-neon-400">maîtrisée.</span>
+          <p className="text-sm font-medium text-neon-400">Apprendre Docker par la pratique</p>
+          <h1 className="mt-4 text-4xl font-semibold leading-[1.1] tracking-tight text-ink-100 sm:text-[3.25rem]">
+            Maîtrise la ligne de commande Docker.
           </h1>
-          <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink-300">
-            Des cours courts, un terminal simulé qui réagit comme le vrai, des Dockerfile et compose.yaml à écrire, et un quiz pour chaque
-            module. De Docker Desktop à Docker Hub.
+          <p className="mt-5 max-w-lg text-[17px] leading-relaxed text-ink-400">
+            Des cours concis, un terminal simulé qui réagit comme le vrai et des exercices guidés, de Docker Desktop jusqu&apos;à Docker
+            Hub.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <ContinueButton />
-            <ButtonLink href="/aide-memoire" className="px-5 py-2.5">
-              Aide-mémoire
-            </ButtonLink>
+            <ButtonLink href="/aide-memoire">Aide-mémoire</ButtonLink>
           </div>
-          <dl className="mt-10 flex flex-wrap gap-x-10 gap-y-4">
+          <dl className="mt-12 flex divide-x divide-ink-700">
             {stats.map((stat) => (
-              <div key={stat.label}>
+              <div key={stat.label} className="px-6 first:pl-0">
                 <dt className="sr-only">{stat.label}</dt>
-                <dd className="font-mono text-2xl font-semibold text-white">{stat.value}</dd>
-                <dd className="text-sm text-ink-400">{stat.label}</dd>
+                <dd className="text-2xl font-semibold tabular-nums text-ink-100">{stat.value}</dd>
+                <dd className="text-sm text-ink-500">{stat.label}</dd>
               </div>
             ))}
           </dl>
@@ -61,27 +61,24 @@ export default function HomePage() {
         <HeroTerminal />
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-8 border-y border-ink-800 py-10 md:grid-cols-3">
         {STEPS.map((step, index) => (
-          <div key={step.title} className="rounded-2xl border border-ink-700 bg-ink-850 p-5">
-            <div className="flex items-center gap-3">
-              <step.icon className="h-5 w-5 text-neon-400" aria-hidden />
-              <span className="font-mono text-xs text-ink-500">0{index + 1}</span>
+          <div key={step.title} className="flex gap-4">
+            <span className="font-mono text-sm text-neon-400">0{index + 1}</span>
+            <div>
+              <h2 className="font-medium text-ink-100">{step.title}</h2>
+              <p className="mt-1 text-sm leading-relaxed text-ink-400">{step.text}</p>
             </div>
-            <h2 className="mt-3 font-semibold text-white">{step.title}</h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-400">{step.text}</p>
           </div>
         ))}
       </section>
 
       <section>
-        <div className="mb-6 flex items-end justify-between">
-          <div>
-            <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-400">Parcours</p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">8 modules, du premier conteneur à la publication</h2>
-          </div>
-          <ResetProgressButton />
-        </div>
+        <SectionHeading
+          title="Parcours"
+          description="Huit modules, du premier conteneur à la publication sur Docker Hub."
+          action={<ResetProgressButton />}
+        />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {modules.map((mod, index) => (
             <ModuleCard
@@ -92,7 +89,6 @@ export default function HomePage() {
                 title: mod.title,
                 description: mod.description,
                 icon: mod.icon,
-                videoCount: mod.videos.length,
                 exerciseIds: mod.exercises.map((exercise) => exercise.id),
               }}
             />
@@ -101,8 +97,7 @@ export default function HomePage() {
       </section>
 
       <section>
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-400">Cours complets</p>
-        <h2 className="mt-2 mb-6 text-2xl font-semibold tracking-tight text-white">Tout Docker en une séance vidéo</h2>
+        <SectionHeading title="Cours complets en vidéo" description="Pour tout revoir d'une traite." />
         <div className="grid gap-4 md:grid-cols-3">
           {featuredVideos.map((video) => (
             <VideoCard key={video.youtubeId} video={video} />

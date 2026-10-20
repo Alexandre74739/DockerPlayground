@@ -23,9 +23,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="fr" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
         <Header />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 sm:py-10">{children}</main>
-        <footer className="border-t border-ink-700/70 py-6 text-center font-mono text-xs text-ink-500">
-          Terminal simulé — aucune commande n&apos;est exécutée sur ta machine.
+        <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10 sm:py-14">{children}</main>
+        <footer className="border-t border-ink-800">
+          <div className="mx-auto flex max-w-7xl justify-between px-6 py-6 text-xs text-ink-500">
+            <span>Docker Playground</span>
+            <span>Environnement simulé — aucune commande n&apos;est exécutée sur ta machine.</span>
+          </div>
         </footer>
       </body>
     </html>

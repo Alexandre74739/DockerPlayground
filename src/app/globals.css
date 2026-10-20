@@ -1,83 +1,84 @@
 @import "tailwindcss";
 
 /*
- * Charte : fond gris anthracite (ink), accent bleu (azure) et jaune fluo (neon).
- * Les couleurs sont disponibles en classes Tailwind : bg-ink-900, text-neon-400…
+ * Charte : gris anthracite (ink) et un seul accent, vert fluo (neon).
+ * Couleurs disponibles en classes Tailwind : bg-ink-900, text-neon-400…
  */
 @theme inline {
-  --color-ink-950: #111316;
-  --color-ink-925: #15171b;
-  --color-ink-900: #1a1d21;
-  --color-ink-850: #1f2227;
-  --color-ink-800: #262a30;
-  --color-ink-700: #32373e;
-  --color-ink-600: #444a53;
-  --color-ink-500: #666d78;
-  --color-ink-400: #8c939e;
-  --color-ink-300: #b4bac3;
-  --color-ink-200: #d4d8dd;
-  --color-ink-100: #eceef1;
+  --color-ink-950: #111214;
+  --color-ink-925: #141518;
+  --color-ink-900: #18191c;
+  --color-ink-850: #1d1e22;
+  --color-ink-800: #232428;
+  --color-ink-750: #2a2b30;
+  --color-ink-700: #313237;
+  --color-ink-600: #45464c;
+  --color-ink-500: #6c6e75;
+  --color-ink-400: #94969d;
+  --color-ink-300: #b9bbc0;
+  --color-ink-200: #d6d7da;
+  --color-ink-100: #ededee;
 
-  --color-azure-200: #b9dcff;
-  --color-azure-300: #8cc4ff;
-  --color-azure-400: #56a8ff;
-  --color-azure-500: #2f8cff;
-  --color-azure-600: #1b6fe0;
-  --color-azure-950: #0f1d30;
-
-  --color-neon-200: #f6ffad;
-  --color-neon-300: #efff6b;
+  --color-neon-300: #ecff66;
   --color-neon-400: #e2ff1f;
-  --color-neon-500: #c6e000;
-  --color-neon-950: #22260c;
+  --color-neon-500: #c3dc0c;
+  --color-neon-950: #1f2410;
+
+  --color-danger: #f0827a;
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-:root {
-  color-scheme: dark;
-}
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
 
-body {
-  background: var(--color-ink-900);
-  color: var(--color-ink-100);
-}
+  body {
+    background: var(--color-ink-900);
+    color: var(--color-ink-100);
+    font-feature-settings: "ss01", "cv11";
+  }
 
-::selection {
-  background: color-mix(in srgb, var(--color-azure-500) 45%, transparent);
-  color: #fff;
-}
+  /* Tailwind v4 rend aux boutons le curseur par défaut : on rétablit la main. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select {
+    cursor: pointer;
+  }
 
-/* Barres de défilement discrètes, y compris dans le terminal. */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-ink-600) transparent;
-}
+  button:disabled {
+    cursor: default;
+  }
 
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+  ::selection {
+    background: color-mix(in srgb, var(--color-neon-400) 30%, transparent);
+    color: #fff;
+  }
 
-*::-webkit-scrollbar-thumb {
-  background: var(--color-ink-600);
-  border: 3px solid transparent;
-  background-clip: padding-box;
-  border-radius: 9999px;
-}
+  :focus-visible {
+    outline: 2px solid var(--color-neon-400);
+    outline-offset: 2px;
+  }
 
-:focus-visible {
-  outline: 2px solid var(--color-neon-400);
-  outline-offset: 2px;
-}
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ink-600) transparent;
+  }
 
-/* Quadrillage décoratif utilisé en fond de section. */
-.bg-grid {
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--color-ink-100) 5%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--color-ink-100) 5%, transparent) 1px, transparent 1px);
-  background-size: 32px 32px;
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-ink-600);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 9999px;
+  }
 }
 
 @keyframes cursor-blink {

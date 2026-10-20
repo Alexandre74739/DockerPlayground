@@ -1,44 +1,29 @@
-import { ArrowUpRight, BookOpen, FlaskConical, Newspaper } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import type { Resource } from "@/lib/types";
 
-const KINDS = {
-  doc: { icon: BookOpen, label: "Documentation" },
-  lab: { icon: FlaskConical, label: "Exercices en ligne" },
-  article: { icon: Newspaper, label: "Ressource" },
+const KIND_LABELS: Record<Resource["kind"], string> = {
+  doc: "Documentation",
+  lab: "Exercices en ligne",
+  article: "Ressource",
 };
 
 export function ResourceList({ resources }: { resources: Resource[] }) {
   return (
-    <ul className="grid gap-3 sm:grid-cols-2">
-      {resources.map((resource) => {
-        const { icon: Icon, label } = KINDS[resource.kind];
-        return (
-          <li key={resource.url}>
-            <a
-              href={resource.url}
-              target="_blank"
-              rel="noreferrer"
-              className="group flex h-full gap-3 rounded-xl border border-ink-700 bg-ink-850 p-4 transition hover:border-azure-400/60 hover:bg-ink-800"
-            >
-              <span
-                className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${resource.kind === "lab" ? "bg-neon-950 text-neon-400" : "bg-azure-950 text-azure-400"}`}
-              >
-                <Icon className="h-4.5 w-4.5" aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5 font-medium text-ink-100 group-hover:text-white">
-                  {resource.title}
-                  <ArrowUpRight className="h-3.5 w-3.5 text-ink-500 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-azure-400" />
-                </span>
-                <span className="mt-1 block text-sm leading-snug text-ink-400">{resource.description}</span>
-                <span className="mt-2 block font-mono text-[11px] uppercase tracking-wider text-ink-500">
-                  {label} · {resource.lang}
-                </span>
-              </span>
-            </a>
-          </li>
-        );
-      })}
+    <ul className="divide-y divide-ink-800 border-y border-ink-800">
+      {resources.map((resource) => (
+        <li key={resource.url}>
+          <a href={resource.url} target="_blank" rel="noreferrer" className="group flex items-start gap-4 py-4">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-ink-100">{resource.title}</p>
+              <p className="mt-0.5 text-sm text-ink-400">{resource.description}</p>
+            </div>
+            <span className="hidden shrink-0 pt-0.5 text-xs text-ink-500 sm:block">
+              {KIND_LABELS[resource.kind]} · {resource.lang.toUpperCase()}
+            </span>
+            <ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-ink-500 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-neon-400" />
+          </a>
+        </li>
+      ))}
     </ul>
   );
 }

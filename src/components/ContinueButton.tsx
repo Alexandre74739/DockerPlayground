@@ -28,8 +28,8 @@ export function ContinueButton() {
   }
 
   return (
-    <ButtonLink href={href} variant="primary" className="px-5 py-2.5">
-      {started ? "Reprendre là où j'en étais" : "Commencer le parcours"} <ArrowRight className="h-4 w-4" />
+    <ButtonLink href={href} variant="primary">
+      {started ? "Reprendre" : "Commencer le parcours"} <ArrowRight className="h-4 w-4" />
     </ButtonLink>
   );
 }

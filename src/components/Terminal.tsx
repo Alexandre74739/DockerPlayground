@@ -29,9 +29,9 @@ function PromptText({ text }: { text: string }) {
     return (
       <>
         <span className="text-neon-400">{host[1]}</span>
-        <span className="text-ink-400">:</span>
-        <span className="text-azure-400">{host[2]}</span>
-        <span className="text-ink-100">{host[3]} </span>
+        <span className="text-ink-500">:</span>
+        <span className="text-ink-300">{host[2]}</span>
+        <span className="text-ink-500">{host[3]} </span>
       </>
     );
   }
@@ -55,7 +55,7 @@ export function Terminal({ title, lines, prompt, onSubmit, onInterrupt, onClear,
   useLayoutEffect(() => {
     const screen = screenRef.current;
     if (screen) screen.scrollTop = screen.scrollHeight;
-  }, [lines, value, suggestions]);
+  }, [lines, value, cursor, suggestions]);
 
   useEffect(() => {
     inputRef.current?.focus({ preventScroll: true });
@@ -151,24 +151,22 @@ export function Terminal({ title, lines, prompt, onSubmit, onInterrupt, onClear,
   const position = prompt?.mask ? 0 : cursor;
 
   return (
-    <div className="flex h-[min(640px,calc(100vh-10rem))] min-h-[420px] flex-col overflow-hidden rounded-xl border border-ink-700 bg-ink-950 shadow-2xl shadow-black/40">
-      <div className="flex shrink-0 items-center gap-3 border-b border-ink-800 bg-ink-925 px-4 py-2">
+    <div className="flex h-[min(600px,calc(100vh-21rem))] min-h-[380px] flex-col overflow-hidden rounded-xl border border-ink-800 bg-ink-950">
+      <div className="flex h-10 shrink-0 items-center gap-3 border-b border-ink-800 px-4">
         <div className="flex gap-1.5" aria-hidden>
-          <span className="h-3 w-3 rounded-full bg-ink-700" />
-          <span className="h-3 w-3 rounded-full bg-ink-700" />
-          <span className="h-3 w-3 rounded-full bg-ink-700" />
+          <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />
+          <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />
+          <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />
         </div>
-        <div className="flex items-center gap-2 rounded-md border-t-2 border-neon-400 bg-ink-950 px-3 py-1 font-mono text-xs text-ink-200">
-          <span className="text-neon-400">&gt;_</span> {title}
-        </div>
-        <span className="ml-auto hidden font-mono text-[11px] text-ink-500 sm:inline">clic droit : coller · Tab : compléter</span>
+        <span className="flex-1 truncate text-center font-mono text-xs text-ink-400">{title}</span>
+        <span className="w-[42px]" aria-hidden />
       </div>
 
       <div
         ref={screenRef}
         onMouseUp={handleMouseUp}
         onContextMenu={handleContextMenu}
-        className="relative flex-1 cursor-text overflow-y-auto overflow-x-hidden px-4 py-3 font-mono text-[13px] leading-[1.55] text-ink-100"
+        className="relative flex-1 cursor-text overflow-y-auto overflow-x-hidden px-5 py-4 font-mono text-[13px] leading-[1.6] text-ink-100"
       >
         {lines.map((line, index) => (
           <pre key={index} className="whitespace-pre-wrap break-all">
@@ -177,36 +175,34 @@ export function Terminal({ title, lines, prompt, onSubmit, onInterrupt, onClear,
           </pre>
         ))}
 
-        {suggestions.length > 0 && <pre className="whitespace-pre-wrap text-ink-300">{suggestions.join("   ")}</pre>}
+        {suggestions.length > 0 && <pre className="whitespace-pre-wrap text-ink-400">{suggestions.join("   ")}</pre>}
 
-        <pre className="whitespace-pre-wrap break-all">
+        {/* Le champ invisible suit la ligne active : le navigateur ne fait plus défiler l'écran vers le haut. */}
+        <pre className="relative whitespace-pre-wrap break-all">
           {prompt && <PromptText text={prompt.text} />}
           {shown.slice(0, position)}
-          <span
-            className={`${focused ? "animate-cursor bg-neon-400 text-ink-950" : "outline outline-1 -outline-offset-1 outline-ink-400"}`}
-          >
+          <span className={focused ? "animate-cursor bg-neon-400 text-ink-950" : "outline outline-1 -outline-offset-1 outline-ink-500"}>
             {shown[position] ?? " "}
           </span>
           {shown.slice(position + 1)}
+          <input
+            ref={inputRef}
+            value={value}
+            onChange={(event) => {
+              setValue(event.target.value);
+              setCursor(event.target.selectionStart ?? event.target.value.length);
+            }}
+            onSelect={(event) => setCursor(event.currentTarget.selectionStart ?? 0)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            spellCheck={false}
+            autoComplete="off"
+            autoCapitalize="off"
+            aria-label="Saisie du terminal"
+            className="pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-0"
+          />
         </pre>
-
-        <input
-          ref={inputRef}
-          value={value}
-          onChange={(event) => {
-            setValue(event.target.value);
-            setCursor(event.target.selectionStart ?? event.target.value.length);
-          }}
-          onSelect={(event) => setCursor(event.currentTarget.selectionStart ?? 0)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          spellCheck={false}
-          autoComplete="off"
-          autoCapitalize="off"
-          aria-label="Saisie du terminal"
-          className="pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-0"
-        />
       </div>
     </div>
   );

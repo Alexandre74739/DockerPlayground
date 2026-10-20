@@ -37,8 +37,8 @@ export function CheatSheet({ sections }: { sections: CheatSheetSection[] }) {
     .filter((section) => section.commands.length > 0);
 
   return (
-    <div className="space-y-6">
-      <label className="flex max-w-md items-center gap-2.5 rounded-xl border border-ink-700 bg-ink-850 px-4 py-2.5 focus-within:border-azure-400">
+    <div className="space-y-10">
+      <label className="flex h-10 max-w-md items-center gap-2.5 rounded-lg border border-ink-800 bg-ink-850 px-3.5 focus-within:border-ink-500">
         <Search className="h-4 w-4 text-ink-500" aria-hidden />
         <input
           value={query}
@@ -47,18 +47,18 @@ export function CheatSheet({ sections }: { sections: CheatSheetSection[] }) {
           className="flex-1 bg-transparent text-sm text-ink-100 outline-none placeholder:text-ink-500"
         />
       </label>
-      <div className="columns-1 gap-5 lg:columns-2">
+      <div className="columns-1 gap-12 lg:columns-2">
         {filtered.map((section) => (
-          <section key={section.title} className="mb-5 break-inside-avoid rounded-2xl border border-ink-700 bg-ink-850 p-5">
-            <h2 className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-neon-400">{section.title}</h2>
-            <dl className="space-y-3">
+          <section key={section.title} className="mb-10 break-inside-avoid">
+            <h2 className="mb-3 font-medium text-ink-100">{section.title}</h2>
+            <dl className="divide-y divide-ink-800 border-y border-ink-800">
               {section.commands.map((item) => (
-                <div key={item.command} className="group">
+                <div key={item.command} className="group py-2.5">
                   <dt className="flex items-center gap-2">
-                    <code className="font-mono text-sm text-azure-300">{item.command}</code>
+                    <code className="font-mono text-[13px] text-ink-100">{item.command}</code>
                     <CopyButton text={item.command} />
                   </dt>
-                  <dd className="text-sm text-ink-400">{item.description}</dd>
+                  <dd className="mt-0.5 text-sm text-ink-500">{item.description}</dd>
                 </div>
               ))}
             </dl>

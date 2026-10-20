@@ -1,6 +1,5 @@
 "use client";
 
-import { FileCode2 } from "lucide-react";
 import { useRef, type KeyboardEvent } from "react";
 
 type CodeEditorProps = {
@@ -35,19 +34,13 @@ export function CodeEditor({ fileName, value, onChange, onSubmit }: CodeEditorPr
   }
 
   return (
-    <div className="flex h-[min(640px,calc(100vh-10rem))] min-h-[420px] flex-col overflow-hidden rounded-xl border border-ink-700 bg-ink-950 shadow-2xl shadow-black/40">
-      <div className="flex shrink-0 items-end gap-1 border-b border-ink-800 bg-ink-925 px-2 pt-2">
-        <span className="flex items-center gap-2 rounded-t-md border-t-2 border-neon-400 bg-ink-950 px-3 py-1.5 font-mono text-xs text-ink-100">
-          <FileCode2 className="h-3.5 w-3.5 text-azure-400" aria-hidden /> {fileName}
-        </span>
-        <span className="ml-auto pb-1.5 pr-2 font-mono text-[11px] text-ink-500">Ctrl + Entrée : vérifier</span>
+    <div className="flex h-[min(600px,calc(100vh-21rem))] min-h-[380px] flex-col overflow-hidden rounded-xl border border-ink-800 bg-ink-950">
+      <div className="flex h-10 shrink-0 items-center justify-between border-b border-ink-800 px-4">
+        <span className="font-mono text-xs text-ink-200">{fileName}</span>
+        <span className="text-xs text-ink-500">Ctrl + Entrée pour vérifier</span>
       </div>
       <div className="flex min-h-0 flex-1 font-mono text-[13px] leading-6">
-        <div
-          ref={gutterRef}
-          aria-hidden
-          className="select-none overflow-hidden border-r border-ink-800 py-3 pl-4 pr-3 text-right text-ink-600"
-        >
+        <div ref={gutterRef} aria-hidden className="select-none overflow-hidden py-3 pl-4 pr-3 text-right text-ink-600">
           {Array.from({ length: lineCount }, (_, index) => (
             <div key={index}>{index + 1}</div>
           ))}
@@ -63,7 +56,7 @@ export function CodeEditor({ fileName, value, onChange, onSubmit }: CodeEditorPr
           autoFocus
           wrap="off"
           aria-label={`Contenu du fichier ${fileName}`}
-          className="flex-1 resize-none bg-transparent px-4 py-3 text-ink-100 caret-neon-400 outline-none"
+          className="flex-1 resize-none bg-transparent py-3 pr-4 pl-2 text-ink-100 caret-neon-400 outline-none"
         />
       </div>
     </div>

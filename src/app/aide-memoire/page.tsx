@@ -6,11 +6,11 @@ export const metadata: Metadata = { title: "Aide-mémoire · Docker Playground" 
 
 export default function CheatSheetPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div>
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-400">Référence</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Aide-mémoire</h1>
-        <p className="mt-2 text-ink-400">Les commandes essentielles pour être autonome au quotidien.</p>
+        <p className="text-sm font-medium text-neon-400">Référence</p>
+        <h1 className="mt-2 text-4xl font-semibold tracking-tight text-ink-100">Aide-mémoire</h1>
+        <p className="mt-3 text-[17px] text-ink-400">Les commandes essentielles pour être autonome au quotidien.</p>
       </div>
       <CheatSheet sections={cheatSheet} />
     </div>
